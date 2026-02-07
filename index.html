@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeltaYield - Estrategia Préstamo 24h</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'SF Pro Display', -apple-system, sans-serif;
+            background: linear-gradient(135deg, #0a0a12 0%, #12121f 100%);
+            color: #e4e4e7;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 1600px; margin: 0 auto; }
+        
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .logo { font-size: 22px; font-weight: 700; background: linear-gradient(90deg, #f7931a, #ffd700); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        
+        .main-grid { display: grid; grid-template-columns: 320px 1fr; gap: 20px; }
+        
+        .card { background: rgba(255,255,255,0.03); border-radius: 12px; padding: 18px; border: 1px solid rgba(255,255,255,0.06); margin-bottom: 15px; }
+        .card h2 { font-size: 12px; color: #71717a; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1px; }
+        
+        .input-group { margin-bottom: 12px; }
+        .input-group label { display: block; font-size: 11px; color: #a1a1aa; margin-bottom: 4px; }
+        .input-group input { width: 100%; padding: 10px 12px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; font-size: 14px; }
+        .input-group input:focus { outline: none; border-color: #f7931a; }
+        .input-group .hint { font-size: 10px; color: #52525b; margin-top: 3px; }
+        
+        .row { display: flex; gap: 10px; }
+        .row .input-group { flex: 1; }
+        
+        .right-panel { display: flex; flex-direction: column; gap: 15px; }
+        
+        .main-result { background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(22, 163, 74, 0.08)); border: 2px solid rgba(34, 197, 94, 0.4); border-radius: 16px; padding: 25px; text-align: center; }
+        .main-result .label { font-size: 14px; color: #a1a1aa; margin-bottom: 10px; }
+        .main-result .value { font-size: 48px; font-weight: 800; }
+        .main-result .sub { font-size: 13px; color: #71717a; margin-top: 8px; }
+        
+        .green { color: #22c55e; }
+        .red { color: #ef4444; }
+        .orange { color: #f97316; }
+        .gold { color: #ffd700; }
+        .blue { color: #3b82f6; }
+        
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 15px; }
+        .stat-box { background: rgba(0,0,0,0.25); border-radius: 10px; padding: 15px; text-align: center; }
+        .stat-box .label { font-size: 10px; color: #71717a; margin-bottom: 5px; text-transform: uppercase; }
+        .stat-box .value { font-size: 22px; font-weight: 700; }
+        .stat-box .sub { font-size: 10px; color: #52525b; margin-top: 3px; }
+        
+        .loop-container { background: rgba(0,0,0,0.2); border-radius: 12px; overflow: hidden; }
+        .loop-header { background: rgba(247, 147, 26, 0.1); padding: 12px 15px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 13px; font-weight: 600; }
+        .loop-step { display: grid; grid-template-columns: 40px 1fr 140px 140px; gap: 10px; align-items: center; padding: 12px 15px; border-bottom: 1px solid rgba(255,255,255,0.03); font-size: 12px; }
+        .loop-step:last-child { border-bottom: none; }
+        .loop-step.highlight { background: rgba(34, 197, 94, 0.1); }
+        .loop-step.action-swap { background: rgba(168, 85, 247, 0.08); }
+        .loop-step.action-deposit { background: rgba(59, 130, 246, 0.08); }
+        .loop-step.action-borrow { background: rgba(249, 115, 22, 0.08); }
+        .loop-step.action-repay { background: rgba(34, 197, 94, 0.1); }
+        
+        .loop-num { width: 28px; height: 28px; background: rgba(255,255,255,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; }
+        .loop-action { font-weight: 500; }
+        .loop-action span { color: #71717a; font-weight: 400; }
+        .loop-amount { text-align: right; font-weight: 600; }
+        .loop-balance { text-align: right; font-size: 11px; color: #71717a; }
+        
+        .summary-box { background: rgba(0,0,0,0.2); border-radius: 10px; padding: 15px; }
+        .summary-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .summary-row:last-child { border-bottom: none; }
+        .summary-row.total { font-weight: 600; font-size: 14px; border-top: 2px solid rgba(255,255,255,0.1); padding-top: 12px; margin-top: 5px; }
+        
+        .cushion-box { background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(37, 99, 235, 0.05)); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 12px; padding: 20px; }
+        .cushion-box h3 { font-size: 14px; color: #3b82f6; margin-bottom: 15px; }
+        .cushion-result { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .cushion-item { text-align: center; }
+        .cushion-item .value { font-size: 28px; font-weight: 700; }
+        .cushion-item .label { font-size: 11px; color: #71717a; margin-top: 5px; }
+        
+        .profit-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+        .profit-card { background: rgba(0,0,0,0.2); border-radius: 10px; padding: 12px; text-align: center; border: 2px solid transparent; }
+        .profit-card.positive { border-color: rgba(34, 197, 94, 0.3); }
+        .profit-card.negative { border-color: rgba(239, 68, 68, 0.3); }
+        .profit-card .scenario { font-size: 10px; color: #71717a; }
+        .profit-card .price { font-size: 12px; font-weight: 600; margin: 5px 0; }
+        .profit-card .gain { font-size: 18px; font-weight: 700; }
+        .profit-card .roi { font-size: 11px; margin-top: 5px; }
+        
+        .alert { padding: 12px 15px; border-radius: 8px; font-size: 12px; }
+        .alert.info { background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3); }
+        .alert.success { background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.3); }
+        .alert p { color: #a1a1aa; line-height: 1.5; }
+        .alert strong { color: #e4e4e7; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">DeltaYield | Estrategia Préstamo 24h</div>
+        </header>
+        
+        <div class="main-grid">
+            <div>
+                <div class="card">
+                    <h2>💰 Tu Capital</h2>
+                    <div class="input-group">
+                        <label>Capital Propio Disponible (USDT)</label>
+                        <input type="number" id="ownCapital" value="200000" oninput="calculate()">
+                        <div class="hint">Tu capital + Aave = devolución al amigo</div>
+                    </div>
+                    <div class="input-group">
+                        <label>Colchón de Emergencia (USDT)</label>
+                        <input type="number" id="emergencyFund" value="100000" oninput="calculate()">
+                        <div class="hint">Extra si BTC cae (no cuenta para préstamo)</div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h2>📊 Mercado y Aave</h2>
+                    <div class="input-group">
+                        <label>Precio Spot WBTC (USDT)</label>
+                        <input type="number" id="spotPrice" value="97000" oninput="calculate()">
+                    </div>
+                    <div class="input-group">
+                        <label>Precio Liquidación Objetivo (USDT)</label>
+                        <input type="number" id="liqPriceTarget" value="35000" oninput="calculate()">
+                    </div>
+                    <div class="row">
+                        <div class="input-group">
+                            <label>Max LTV (%)</label>
+                            <input type="number" id="maxLTV" value="73" oninput="calculate()">
+                        </div>
+                        <div class="input-group">
+                            <label>Liq Threshold (%)</label>
+                            <input type="number" id="liqThreshold" value="78" oninput="calculate()">
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label>USDT Borrow APY (%)</label>
+                        <input type="number" id="borrowAPY" value="3.56" step="0.01" oninput="calculate()">
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h2>🎯 Simulador Ganancia</h2>
+                    <div class="input-group">
+                        <label>Precio Futuro BTC</label>
+                        <input type="number" id="futurePrice" value="150000" oninput="calculate()">
+                    </div>
+                    <div class="input-group">
+                        <label>Meses Manteniendo</label>
+                        <input type="number" id="holdMonths" value="12" oninput="calculate()">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="right-panel">
+                <div class="main-result">
+                    <div class="label">MÁXIMO QUE PUEDES PEDIR AL AMIGO</div>
+                    <div class="value green" id="maxFriendLoan">$367,033</div>
+                    <div class="sub" id="mainResultSub">Tu capital + Deuda Aave = Devolución completa</div>
+                </div>
+                
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="label">BTC Final</div>
+                        <div class="value gold" id="finalBTC">5.27</div>
+                        <div class="sub">Después de loops</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="label">Deuda Aave</div>
+                        <div class="value red" id="aaveDebt">$143,761</div>
+                        <div class="sub" id="ltvUsed">LTV: 28.1%</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="label">Health Factor</div>
+                        <div class="value blue" id="healthFactor">2.77</div>
+                        <div class="sub">Seguro</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="label">Precio Liq.</div>
+                        <div class="value orange" id="actualLiqPrice">$35,000</div>
+                        <div class="sub" id="liqDrop">-64%</div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h2>💡 Cómo devuelves al amigo</h2>
+                    <div class="summary-box">
+                        <div class="summary-row">
+                            <span>Préstamo del amigo</span>
+                            <span class="orange" id="friendLoanDisplay">$343,761</span>
+                        </div>
+                        <div class="summary-row">
+                            <span>Lo que Aave te presta (deuda final)</span>
+                            <span class="blue" id="aaveLoanDisplay">$143,761</span>
+                        </div>
+                        <div class="summary-row">
+                            <span>+ Tu capital propio</span>
+                            <span class="green" id="ownCapitalDisplay">$200,000</span>
+                        </div>
+                        <div class="summary-row total">
+                            <span>Total para devolver</span>
+                            <span class="green" id="totalToRepay">$343,761 ✅</span>
+                        </div>
+                    </div>
+                    <div class="alert info" style="margin-top: 15px;">
+                        <p><strong>Fórmula:</strong> Máx Préstamo = Deuda Aave Final + Tu Capital</p>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h2>🔄 Detalle Completo del Looping</h2>
+                    <div class="loop-container" id="loopContainer"></div>
+                </div>
+                
+                <div class="card">
+                    <h2>🛡️ Colchón de Emergencia</h2>
+                    <div class="cushion-box">
+                        <h3>Con tu colchón de <span id="cushionAmountDisplay">$100,000</span></h3>
+                        <div class="cushion-result">
+                            <div class="cushion-item">
+                                <div class="value orange" id="liqWithoutCushion">$35,000</div>
+                                <div class="label">Liq SIN inyectar</div>
+                            </div>
+                            <div class="cushion-item">
+                                <div class="value green" id="liqWithCushion">$10,654</div>
+                                <div class="label">Liq SI inyectas colchón</div>
+                            </div>
+                        </div>
+                        <div class="alert success" style="margin-top: 15px;">
+                            <p>Inyectando el colchón pagas deuda y bajas liquidación de <strong id="liqDropFrom">$35k</strong> → <strong id="liqDropTo">$10.6k</strong></p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h2>📈 Simulador de Ganancias</h2>
+                    <div class="profit-grid" id="profitGrid"></div>
+                    <div class="summary-box" style="margin-top: 15px;">
+                        <div class="summary-row"><span>Valor BTC @ <span id="futurePriceLabel">$150k</span></span><span id="futureBTCValue">$790,500</span></div>
+                        <div class="summary-row"><span>(-) Pagar deuda Aave</span><span class="red" id="payAaveDebt">-$143,761</span></div>
+                        <div class="summary-row"><span>(-) Intereses (<span id="monthsLabel">12</span> meses)</span><span class="red" id="payInterest">-$5,118</span></div>
+                        <div class="summary-row total"><span>Efectivo neto</span><span class="green" id="netCash">$641,621</span></div>
+                        <div class="summary-row"><span>(-) Tu inversión</span><span id="originalInvestment">$200,000</span></div>
+                        <div class="summary-row total"><span>GANANCIA NETA</span><span class="green" id="netProfit">$441,621</span></div>
+                        <div class="summary-row"><span>ROI</span><span class="gold" id="roi">220.8%</span></div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h2>💸 Costos</h2>
+                    <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr);">
+                        <div class="stat-box"><div class="label">Mensual</div><div class="value red" id="costMonthly">$426</div></div>
+                        <div class="stat-box"><div class="label">Anual</div><div class="value red" id="costAnnual">$5,118</div></div>
+                        <div class="stat-box"><div class="label">BTC debe subir</div><div class="value orange" id="btcMustRise">+1.0%</div><div class="sub">para cubrir costos</div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function fmt(n, d=2) { return Math.abs(n).toLocaleString('en-US', {minimumFractionDigits: d, maximumFractionDigits: d}); }
+        function fmtUSD(n) { 
+            const abs = Math.abs(n);
+            const sign = n < 0 ? '-' : '';
+            if (abs >= 1e6) return sign + '$' + fmt(abs/1e6, 2) + 'M';
+            return sign + '$' + fmt(abs, 0);
+        }
+        
+        function calculate() {
+            const ownCapital = parseFloat(document.getElementById('ownCapital').value) || 0;
+            const emergencyFund = parseFloat(document.getElementById('emergencyFund').value) || 0;
+            const spotPrice = parseFloat(document.getElementById('spotPrice').value) || 97000;
+            const liqPriceTarget = parseFloat(document.getElementById('liqPriceTarget').value) || 35000;
+            const maxLTV = (parseFloat(document.getElementById('maxLTV').value) || 73) / 100;
+            const liqThreshold = (parseFloat(document.getElementById('liqThreshold').value) || 78) / 100;
+            const borrowAPY = (parseFloat(document.getElementById('borrowAPY').value) || 3.56) / 100;
+            const futurePrice = parseFloat(document.getElementById('futurePrice').value) || 150000;
+            const holdMonths = parseFloat(document.getElementById('holdMonths').value) || 12;
+            
+            // k = constraint factor for liquidation price
+            const k = liqPriceTarget * liqThreshold / spotPrice;
+            
+            // Max multiplier from looping constrained by liq price
+            // finalBTC = initialBTC / (1 - k)
+            // finalDebt = finalBTC * liqPriceTarget * liqThreshold
+            // 
+            // We need: finalDebt + ownCapital = friendLoan (to repay friend)
+            // And: initialBTC = friendLoan / spotPrice
+            // 
+            // Solving: friendLoan = ownCapital / (1 - k - k) = ownCapital / (1 - 2k)
+            // Wait that's not right. Let me redo.
+            //
+            // friendLoan = amount borrowed from friend
+            // initialBTC = friendLoan / spotPrice
+            // After looping to liq constraint:
+            //   finalBTC = initialBTC / (1 - k)
+            //   finalDebt = finalBTC * spotPrice * k = initialBTC * spotPrice * k / (1 - k) = friendLoan * k / (1 - k)
+            //
+            // To repay friend: finalDebt + ownCapital >= friendLoan
+            // friendLoan * k / (1 - k) + ownCapital >= friendLoan
+            // ownCapital >= friendLoan * (1 - k/(1-k))
+            // ownCapital >= friendLoan * ((1-k-k)/(1-k))
+            // ownCapital >= friendLoan * (1 - 2k) / (1 - k)
+            // friendLoan <= ownCapital * (1 - k) / (1 - 2k)
+            
+            const maxFriendLoan = ownCapital * (1 - k) / (1 - 2*k);
+            const friendLoan = maxFriendLoan;
+            
+            // Initial BTC
+            const initialBTC = friendLoan / spotPrice;
+            
+            // Final BTC after looping (constrained by liq price)
+            const finalBTC = initialBTC / (1 - k);
+            
+            // Final debt
+            const finalDebt = finalBTC * spotPrice * k;
+            
+            // Verify: finalDebt + ownCapital should equal friendLoan
+            const totalToRepay = finalDebt + ownCapital;
+            
+            // Health factor
+            const hf = (finalBTC * spotPrice * liqThreshold) / finalDebt;
+            const ltvUsed = finalDebt / (finalBTC * spotPrice);
+            const actualLiqPrice = finalDebt / (finalBTC * liqThreshold);
+            const liqDrop = ((actualLiqPrice - spotPrice) / spotPrice * 100);
+            
+            // Generate loop steps
+            let loops = [];
+            let stepNum = 1;
+            let btc = 0;
+            let debt = 0;
+            
+            // Step 1: Receive loan
+            loops.push({ num: stepNum++, action: 'Recibir préstamo del amigo', detail: 'Transferencia USDT', amount: fmtUSD(friendLoan), amountClass: 'green', balance: 'USDT: ' + fmtUSD(friendLoan), class: '' });
+            
+            // Step 2: Swap all to BTC
+            btc = initialBTC;
+            loops.push({ num: stepNum++, action: 'Swap USDT → WBTC', detail: '@ ' + fmtUSD(spotPrice), amount: fmt(btc, 4) + ' WBTC', amountClass: 'gold', balance: 'Valor: ' + fmtUSD(btc * spotPrice), class: 'action-swap' });
+            
+            // Step 3: Deposit
+            loops.push({ num: stepNum++, action: 'Depositar WBTC en Aave', detail: 'Como colateral', amount: fmt(btc, 4) + ' WBTC', amountClass: '', balance: 'Colateral: ' + fmtUSD(btc * spotPrice), class: 'action-deposit' });
+            
+            // Simulate actual loops
+            let loopCount = 0;
+            while (loopCount < 20) {
+                const collateralValue = btc * spotPrice;
+                const maxDebtByLTV = collateralValue * maxLTV;
+                const maxDebtByLiq = btc * liqPriceTarget * liqThreshold;
+                const canBorrow = Math.min(maxDebtByLTV - debt, maxDebtByLiq - debt);
+                
+                if (canBorrow < 100) break;
+                
+                loopCount++;
+                debt += canBorrow;
+                
+                // Borrow step
+                loops.push({ num: stepNum++, action: 'LOOP ' + loopCount + ': Pedir USDT', detail: 'LTV: ' + fmt(debt / (btc * spotPrice) * 100, 1) + '%', amount: fmtUSD(canBorrow), amountClass: 'orange', balance: 'Deuda: ' + fmtUSD(debt), class: 'action-borrow' });
+                
+                // Buy more BTC
+                const newBTC = canBorrow / spotPrice;
+                btc += newBTC;
+                
+                // Swap step
+                loops.push({ num: stepNum++, action: 'LOOP ' + loopCount + ': Swap → WBTC', detail: '@ ' + fmtUSD(spotPrice), amount: '+' + fmt(newBTC, 4) + ' WBTC', amountClass: 'gold', balance: 'Total: ' + fmt(btc, 4) + ' WBTC', class: 'action-swap' });
+                
+                // Deposit step
+                loops.push({ num: stepNum++, action: 'LOOP ' + loopCount + ': Depositar WBTC', detail: 'Agregar colateral', amount: fmt(btc, 4) + ' WBTC', amountClass: '', balance: 'Colateral: ' + fmtUSD(btc * spotPrice), class: 'action-deposit' });
+            }
+            
+            // Use calculated finalDebt (more accurate than simulated)
+            debt = finalDebt;
+            btc = finalBTC;
+            
+            // Final: get USDT from Aave to repay
+            loops.push({ num: stepNum++, action: 'Retirar USDT de Aave', detail: 'Del préstamo total', amount: fmtUSD(debt), amountClass: 'orange', balance: 'USDT: ' + fmtUSD(debt), class: 'action-borrow' });
+            loops.push({ num: stepNum++, action: 'Agregar tu capital', detail: 'Para completar devolución', amount: '+' + fmtUSD(ownCapital), amountClass: 'green', balance: 'Total: ' + fmtUSD(debt + ownCapital), class: '' });
+            loops.push({ num: stepNum++, action: 'DEVOLVER AL AMIGO ✅', detail: 'Préstamo saldado', amount: fmtUSD(friendLoan), amountClass: 'green', balance: 'Deuda externa: $0', class: 'action-repay highlight' });
+            
+            // Render
+            let loopHTML = '<div class="loop-header">' + loops.length + ' pasos | ' + loopCount + ' loops de apalancamiento</div>';
+            loops.forEach(l => {
+                loopHTML += '<div class="loop-step ' + l.class + '"><div class="loop-num">' + l.num + '</div><div class="loop-action">' + l.action + ' <span>' + l.detail + '</span></div><div class="loop-amount ' + l.amountClass + '">' + l.amount + '</div><div class="loop-balance">' + l.balance + '</div></div>';
+            });
+            document.getElementById('loopContainer').innerHTML = loopHTML;
+            
+            // Update all displays
+            document.getElementById('maxFriendLoan').textContent = fmtUSD(maxFriendLoan);
+            document.getElementById('mainResultSub').textContent = 'Deuda Aave ' + fmtUSD(finalDebt) + ' + Tu capital ' + fmtUSD(ownCapital) + ' = ' + fmtUSD(totalToRepay);
+            document.getElementById('finalBTC').textContent = fmt(finalBTC, 2);
+            document.getElementById('aaveDebt').textContent = fmtUSD(finalDebt);
+            document.getElementById('ltvUsed').textContent = 'LTV: ' + fmt(ltvUsed * 100, 1) + '%';
+            document.getElementById('healthFactor').textContent = fmt(hf, 2);
+            document.getElementById('actualLiqPrice').textContent = fmtUSD(actualLiqPrice);
+            document.getElementById('liqDrop').textContent = fmt(liqDrop, 0) + '%';
+            
+            document.getElementById('friendLoanDisplay').textContent = fmtUSD(friendLoan);
+            document.getElementById('aaveLoanDisplay').textContent = fmtUSD(finalDebt);
+            document.getElementById('ownCapitalDisplay').textContent = fmtUSD(ownCapital);
+            document.getElementById('totalToRepay').textContent = fmtUSD(totalToRepay) + ' ✅';
+            
+            // Cushion
+            document.getElementById('cushionAmountDisplay').textContent = fmtUSD(emergencyFund);
+            document.getElementById('liqWithoutCushion').textContent = fmtUSD(actualLiqPrice);
+            const debtAfterCushion = Math.max(0, finalDebt - emergencyFund);
+            const liqWithCushion = debtAfterCushion > 0 ? debtAfterCushion / (finalBTC * liqThreshold) : 0;
+            document.getElementById('liqWithCushion').textContent = fmtUSD(liqWithCushion);
+            document.getElementById('liqDropFrom').textContent = fmtUSD(actualLiqPrice);
+            document.getElementById('liqDropTo').textContent = fmtUSD(liqWithCushion);
+            
+            // Costs
+            const costAnnual = finalDebt * borrowAPY;
+            const costMonthly = costAnnual / 12;
+            document.getElementById('costMonthly').textContent = fmtUSD(costMonthly);
+            document.getElementById('costAnnual').textContent = fmtUSD(costAnnual);
+            document.getElementById('btcMustRise').textContent = '+' + fmt(costAnnual / (finalBTC * spotPrice) * 100, 1) + '%';
+            
+            // Profit
+            const scenarios = [
+                { label: '-30%', mult: 0.7 },
+                { label: 'Igual', mult: 1.0 },
+                { label: '+50%', mult: 1.5 },
+                { label: '+100%', mult: 2.0 },
+                { label: '+150%', mult: 2.5 }
+            ];
+            
+            let profitHTML = '';
+            scenarios.forEach(s => {
+                const price = spotPrice * s.mult;
+                const interest = costMonthly * holdMonths;
+                const netCash = finalBTC * price - finalDebt - interest;
+                const netGain = netCash - ownCapital;
+                const isPos = netGain > 0;
+                profitHTML += '<div class="profit-card ' + (isPos ? 'positive' : 'negative') + '"><div class="scenario">' + s.label + '</div><div class="price">' + fmtUSD(price) + '</div><div class="gain ' + (isPos ? 'green' : 'red') + '">' + fmtUSD(netGain) + '</div><div class="roi ' + (isPos ? 'green' : 'red') + '">' + fmt(netGain/ownCapital*100, 0) + '% ROI</div></div>';
+            });
+            document.getElementById('profitGrid').innerHTML = profitHTML;
+            
+            document.getElementById('futurePriceLabel').textContent = fmtUSD(futurePrice);
+            document.getElementById('monthsLabel').textContent = holdMonths;
+            const futureBTCValue = finalBTC * futurePrice;
+            const futureInterest = costMonthly * holdMonths;
+            const futureNetCash = futureBTCValue - finalDebt - futureInterest;
+            const futureNetProfit = futureNetCash - ownCapital;
+            
+            document.getElementById('futureBTCValue').textContent = fmtUSD(futureBTCValue);
+            document.getElementById('payAaveDebt').textContent = '-' + fmtUSD(finalDebt);
+            document.getElementById('payInterest').textContent = '-' + fmtUSD(futureInterest);
+            document.getElementById('netCash').textContent = fmtUSD(futureNetCash);
+            document.getElementById('originalInvestment').textContent = fmtUSD(ownCapital);
+            document.getElementById('netProfit').textContent = fmtUSD(futureNetProfit);
+            document.getElementById('netProfit').className = futureNetProfit >= 0 ? 'green' : 'red';
+            document.getElementById('roi').textContent = fmt(futureNetProfit/ownCapital*100, 1) + '%';
+        }
+        
+        calculate();
+    </script>
+</body>
+</html>
