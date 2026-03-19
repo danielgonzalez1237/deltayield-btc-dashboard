@@ -32,6 +32,7 @@ export default function ConfigPanel({
   withdrawal, setWithdrawal,
   gasOverride, setGasOverride,
   slippage, setSlippage,
+  rebalanceDelay, setRebalanceDelay,
 }) {
   const [gasOpen, setGasOpen] = useState(false);
 
@@ -87,6 +88,29 @@ export default function ConfigPanel({
             <span className="text-[12px] font-mono text-[#f0f0f8] tabular-nums min-w-[50px] text-right font-semibold">
               {(slippage * 100).toFixed(2)}%
             </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Row 3: Rebalance Delay + Swap Fee */}
+      <div className="flex flex-wrap gap-8 items-end mt-8 pt-8 border-t border-[#1a1a2e]/50">
+        <PillToggle label="Rebalance Delay" value={rebalanceDelay} onChange={setRebalanceDelay}
+          options={[
+            { value: 0, label: 'Instant' },
+            { value: 1, label: '24h' },
+            { value: 2, label: '48h' },
+            { value: 3, label: '72h' },
+            { value: 4, label: '96h' },
+          ]} />
+
+        <div className="w-px h-12 bg-[#1a1a2e] hidden lg:block self-center" />
+
+        {/* Swap Fee (read-only, derived from fee tier) */}
+        <div className="space-y-3">
+          <span className="text-[11px] text-[#555570] font-semibold uppercase tracking-[0.12em] block">Swap Fee</span>
+          <div className="flex items-center gap-3 px-4 py-2 text-[12px] font-semibold rounded-xl border border-[#1a1a2e] bg-[#0a0a14] text-[#8888a8]">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            {feeTier === '005' ? '0.05%' : '0.30%'} per swap
           </div>
         </div>
       </div>

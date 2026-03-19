@@ -20,6 +20,9 @@ export default function CostSummary({ costs, metrics, benchmark, btcUsd }) {
     { label: 'Perp Fees', btc: -perpFees, type: 'cost' },
   ];
 
+  const daysOut = metrics.daysOutOfRange || 0;
+  const feesMissed = metrics.feesMissed || 0;
+
   return (
     <div className="bg-[#0d0d17] border border-[#1a1a2e] rounded-3xl p-8 h-full flex flex-col">
       <h2 className="text-base font-bold text-[#f0f0f8] mb-1.5">P&L Breakdown</h2>
@@ -51,6 +54,22 @@ export default function CostSummary({ costs, metrics, benchmark, btcUsd }) {
           );
         })}
       </div>
+
+      {/* Delay metrics */}
+      {(daysOut > 0 || feesMissed > 0) && (
+        <div className="mt-4 pt-4 border-t border-[#1a1a2e]/50 space-y-2 px-4">
+          <div className="flex items-center justify-between">
+            <span className="text-[12px] text-[#8888a8]">Days Out of Range</span>
+            <span className="text-[12px] font-mono tabular-nums text-[#f7931a] font-semibold">{daysOut}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-[12px] text-[#8888a8]">Fees Lost to Delay</span>
+            <span className="text-[12px] font-mono tabular-nums text-[#ef4444] font-semibold">
+              -{fmt(feesMissed)}
+            </span>
+          </div>
+        </div>
+      )}
 
       <div className={`mt-4 pt-4 border-t border-[#1a1a2e] px-4 py-3.5 rounded-2xl ${
         net >= 0 ? 'bg-[rgba(34,197,94,0.04)]' : 'bg-[rgba(239,68,68,0.04)]'

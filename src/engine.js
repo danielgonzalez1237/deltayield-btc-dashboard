@@ -1,9 +1,10 @@
 /**
- * DeltaYield V3 — Backtest Engine (ADDENDUM-corrected)
+ * DeltaYield V3 — Backtest Engine (ADDENDUM-corrected + Rebalance Delay)
  *
  * All formulas from the brief — zero synthetic data.
  * Corrections: chain-specific gas, OFF mode hedge logic,
  * withdrawal simulator, hybrid 50/50 strategy, USD benchmark.
+ * Addition: configurable rebalance delay (0-4 days).
  */
 
 // ─── Constants ──────────────────────────────────────────────────────
@@ -76,6 +77,7 @@ export function runBacktest(data, config) {
     offMode = 'B',
     gasOverride = null,
     slippage = DEFAULT_SLIPPAGE,
+    rebalanceDelay = 0,
   } = config;
 
   const swapFee = feeTier === '005' ? SWAP_FEE_005 : SWAP_FEE_030;
@@ -91,6 +93,12 @@ export function runBacktest(data, config) {
   let hedgeOpen = false;
   let hedgeExposureBtc = 0;
   let maxHedgeExposure = 0;
+
+  // Rebalance delay state
+  let pendingRebalance = false;
+  let rangeExitDay = null;
+  let daysOutOfRange = 0;
+  let feesMissed = 0;
 
   let totalFees = 0, totalHedge = 0, totalIL = 0, totalGas = 0;
   let totalSlippage = 0, totalSwapFees = 0, totalPerpFees = 0;
@@ -113,6 +121,8 @@ export function runBacktest(data, config) {
     // ─── OFF → ON ───────────────────────────────────────────
     if (on && !wasOn) {
       rangeCenter = ethbtc;
+      pendingRebalance = false;
+      rangeExitDay = null;
 
       if (offMode === 'A' && positions.length > 0) {
         const sc = btc * slippage;
@@ -173,6 +183,9 @@ export function runBacktest(data, config) {
       }
       // Mode B: hedge stays open
 
+      pendingRebalance = false;
+      rangeExitDay = null;
+
       positions.push(currentPosition);
       currentPosition = null;
       rangeCenter = null;
@@ -180,22 +193,26 @@ export function runBacktest(data, config) {
 
     // ─── Daily ON ───────────────────────────────────────────
     if (on && ethbtc != null && apy != null) {
-      const dr = dailyRate(apy);
-      const feeIncome = btc * dr * MULTIPLIER;
-      btc += feeIncome;
-      totalFees += feeIncome;
-      if (currentPosition) currentPosition.fees += feeIncome;
 
-      if (hedge && hedgeOpen && fundingRate != null) {
-        const hi = hedgeExposureBtc * (fundingRate / 100 / 365);
-        btc += hi;
-        totalHedge += hi;
-        if (currentPosition) currentPosition.hedgePnl += hi;
-      }
+      // If pending rebalance (delay > 0 path), no fee accrual — out of range
+      if (pendingRebalance) {
+        // No pool fees while waiting for rebalance (out of range)
+        const dr = dailyRate(apy);
+        const missedFee = btc * dr * MULTIPLIER;
+        feesMissed += missedFee;
+        daysOutOfRange++;
 
-      if (rangeCenter != null) {
-        const drift = Math.abs(ethbtc / rangeCenter - 1);
-        if (drift >= REBALANCE_THRESHOLD) {
+        // Hedge STILL active during delay
+        if (hedge && hedgeOpen && fundingRate != null) {
+          const hi = hedgeExposureBtc * (fundingRate / 100 / 365);
+          btc += hi;
+          totalHedge += hi;
+          if (currentPosition) currentPosition.hedgePnl += hi;
+        }
+
+        // Check if delay period has elapsed
+        if (i - rangeExitDay >= rebalanceDelay) {
+          // Execute rebalance using CURRENT day's price
           const r = ethbtc / rangeCenter;
           const ilCost = Math.abs(btc * calcIL(r));
           btc -= ilCost;
@@ -229,6 +246,69 @@ export function runBacktest(data, config) {
           rangeCenter = ethbtc;
           rebalanceCount++;
           if (currentPosition) currentPosition.rebalances++;
+          pendingRebalance = false;
+          rangeExitDay = null;
+        }
+
+      } else {
+        // Normal in-range day: accrue fees
+        const dr = dailyRate(apy);
+        const feeIncome = btc * dr * MULTIPLIER;
+        btc += feeIncome;
+        totalFees += feeIncome;
+        if (currentPosition) currentPosition.fees += feeIncome;
+
+        if (hedge && hedgeOpen && fundingRate != null) {
+          const hi = hedgeExposureBtc * (fundingRate / 100 / 365);
+          btc += hi;
+          totalHedge += hi;
+          if (currentPosition) currentPosition.hedgePnl += hi;
+        }
+
+        if (rangeCenter != null) {
+          const drift = Math.abs(ethbtc / rangeCenter - 1);
+          if (drift >= REBALANCE_THRESHOLD) {
+            if (rebalanceDelay > 0) {
+              // Delay mode: mark pending, do NOT rebalance yet
+              pendingRebalance = true;
+              rangeExitDay = i;
+            } else {
+              // Instant rebalance (legacy behavior, delay = 0)
+              const r = ethbtc / rangeCenter;
+              const ilCost = Math.abs(btc * calcIL(r));
+              btc -= ilCost;
+              totalIL += ilCost;
+              if (currentPosition) currentPosition.il += ilCost;
+
+              const gasCost = (gasUsd * 2) / btcUsd;
+              btc -= gasCost;
+              totalGas += gasCost;
+              if (currentPosition) currentPosition.gas += gasCost;
+
+              const sc = btc * slippage;
+              btc -= sc;
+              totalSlippage += sc;
+              if (currentPosition) currentPosition.slippage += sc;
+
+              const sf = btc * 0.5 * swapFee;
+              btc -= sf;
+              totalSwapFees += sf;
+              if (currentPosition) currentPosition.swapFees += sf;
+
+              if (hedge && hedgeOpen) {
+                const pf = hedgeExposureBtc * PERP_FEE;
+                btc -= pf;
+                totalPerpFees += pf;
+                if (currentPosition) currentPosition.perpFees += pf;
+                hedgeExposureBtc = btc * HEDGE_RATIO;
+                if (hedgeExposureBtc > maxHedgeExposure) maxHedgeExposure = hedgeExposureBtc;
+              }
+
+              rangeCenter = ethbtc;
+              rebalanceCount++;
+              if (currentPosition) currentPosition.rebalances++;
+            }
+          }
         }
       }
     }
@@ -260,6 +340,7 @@ export function runBacktest(data, config) {
       rangeCenter: rangeCenter ? parseFloat(rangeCenter.toFixed(8)) : null,
       rangeLower: rangeCenter ? parseFloat((rangeCenter * (1 - RANGE_WIDTH)).toFixed(8)) : null,
       rangeUpper: rangeCenter ? parseFloat((rangeCenter * (1 + RANGE_WIDTH)).toFixed(8)) : null,
+      pendingRebalance,
     });
   }
 
@@ -290,6 +371,8 @@ export function runBacktest(data, config) {
       rebalanceCount, totalDays, activeDays,
       years: parseFloat(years.toFixed(2)),
       maxHedgeExposure: parseFloat(maxHedgeExposure.toFixed(6)),
+      daysOutOfRange,
+      feesMissed: parseFloat(feesMissed.toFixed(6)),
     },
     costs: {
       fees: parseFloat(totalFees.toFixed(6)),
@@ -301,7 +384,7 @@ export function runBacktest(data, config) {
       perpFees: parseFloat(totalPerpFees.toFixed(6)),
       net: parseFloat((totalFees + totalHedge - totalIL - totalGas - totalSlippage - totalSwapFees - totalPerpFees).toFixed(6)),
     },
-    config: { feeTier, timing, hedge, offMode, gasOverride, slippage },
+    config: { feeTier, timing, hedge, offMode, gasOverride, slippage, rebalanceDelay },
   };
 }
 
@@ -365,10 +448,16 @@ export function simulateWithdrawals(series, frequency) {
 // ─── Hybrid 50/50 Strategy ──────────────────────────────────────────
 
 export function runHybridBacktest(data, config) {
-  const { timing = 'always', offMode = 'B', gasOverride = null, slippage = DEFAULT_SLIPPAGE } = config;
+  const {
+    timing = 'always',
+    offMode = 'B',
+    gasOverride = null,
+    slippage = DEFAULT_SLIPPAGE,
+    rebalanceDelay = 0,
+  } = config;
 
-  const resultArb = runBacktest(data, { feeTier: '005', timing, hedge: false, offMode, gasOverride, slippage });
-  const resultEth = runBacktest(data, { feeTier: '030', timing, hedge: false, offMode, gasOverride, slippage });
+  const resultArb = runBacktest(data, { feeTier: '005', timing, hedge: false, offMode, gasOverride, slippage, rebalanceDelay });
+  const resultEth = runBacktest(data, { feeTier: '030', timing, hedge: false, offMode, gasOverride, slippage, rebalanceDelay });
 
   let hedgeBtc = 0, hedgeOpen = false, hedgeExposure = 0;
   let totalHedgePnl = 0, totalPerpFees = 0;
@@ -448,12 +537,12 @@ export function scenarioKey(config) {
   return `${chain} ${fee} / ${timing} / ${hedge}`;
 }
 
-export function runAllScenarios(data, gasOverride = null, slippage = DEFAULT_SLIPPAGE) {
+export function runAllScenarios(data, gasOverride = null, slippage = DEFAULT_SLIPPAGE, rebalanceDelay = 0) {
   const configs = [];
   for (const feeTier of ['005', '030']) {
     for (const timing of ['always', 'sma']) {
       for (const hedge of [true, false]) {
-        configs.push({ feeTier, timing, hedge, offMode: 'B', gasOverride, slippage });
+        configs.push({ feeTier, timing, hedge, offMode: 'B', gasOverride, slippage, rebalanceDelay });
       }
     }
   }
@@ -465,7 +554,7 @@ export function runAllScenarios(data, gasOverride = null, slippage = DEFAULT_SLI
 
   // Hybrid scenarios (#9 and #10)
   for (const timing of ['always', 'sma']) {
-    const hybrid = runHybridBacktest(data, { timing, offMode: 'B', gasOverride, slippage });
+    const hybrid = runHybridBacktest(data, { timing, offMode: 'B', gasOverride, slippage, rebalanceDelay });
     const label = timing === 'always' ? 'Always On' : 'SMA Timing';
     base.push({
       key: `Hybrid 50/50 / ${label} / Shared Hedge`,

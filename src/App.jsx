@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { runBacktest, runAllScenarios, runHybridBacktest } from './engine';
+import { runBacktest, runAllScenarios, runHybridBacktest, simulateWithdrawals } from './engine';
 import MainChart from './components/MainChart';
 import ConfigPanel from './components/ConfigPanel';
 import CostSummary from './components/CostSummary';
@@ -24,6 +24,7 @@ export default function App() {
   const [withdrawal, setWithdrawal] = useState('none');
   const [gasOverride, setGasOverride] = useState(null);
   const [slippage, setSlippage] = useState(0.001);
+  const [rebalanceDelay, setRebalanceDelay] = useState(0);
   const [activeTab, setActiveTab] = useState('overview');
 
   useEffect(() => {
@@ -35,28 +36,33 @@ export default function App() {
 
   const result = useMemo(() => {
     if (!data) return null;
-    return runBacktest(data, { feeTier, timing, hedge, offMode, gasOverride, slippage });
-  }, [data, feeTier, timing, hedge, offMode, gasOverride, slippage]);
+    return runBacktest(data, { feeTier, timing, hedge, offMode, gasOverride, slippage, rebalanceDelay });
+  }, [data, feeTier, timing, hedge, offMode, gasOverride, slippage, rebalanceDelay]);
+
+  const withdrawalResult = useMemo(() => {
+    if (!result || withdrawal === 'none') return null;
+    return simulateWithdrawals(result.series, withdrawal);
+  }, [result, withdrawal]);
 
   const allScenarios = useMemo(() => {
     if (!data) return [];
-    return runAllScenarios(data, gasOverride, slippage);
-  }, [data, gasOverride, slippage]);
+    return runAllScenarios(data, gasOverride, slippage, rebalanceDelay);
+  }, [data, gasOverride, slippage, rebalanceDelay]);
 
   const hybridResult = useMemo(() => {
     if (!data) return null;
-    return runHybridBacktest(data, { timing, offMode, gasOverride, slippage });
-  }, [data, timing, offMode, gasOverride, slippage]);
+    return runHybridBacktest(data, { timing, offMode, gasOverride, slippage, rebalanceDelay });
+  }, [data, timing, offMode, gasOverride, slippage, rebalanceDelay]);
 
   const arbOnlyResult = useMemo(() => {
     if (!data) return null;
-    return runBacktest(data, { feeTier: '005', timing, hedge: true, offMode, gasOverride, slippage });
-  }, [data, timing, offMode, gasOverride, slippage]);
+    return runBacktest(data, { feeTier: '005', timing, hedge: true, offMode, gasOverride, slippage, rebalanceDelay });
+  }, [data, timing, offMode, gasOverride, slippage, rebalanceDelay]);
 
   const ethOnlyResult = useMemo(() => {
     if (!data) return null;
-    return runBacktest(data, { feeTier: '030', timing, hedge: true, offMode, gasOverride, slippage });
-  }, [data, timing, offMode, gasOverride, slippage]);
+    return runBacktest(data, { feeTier: '030', timing, hedge: true, offMode, gasOverride, slippage, rebalanceDelay });
+  }, [data, timing, offMode, gasOverride, slippage, rebalanceDelay]);
 
   const btcUsd = result?.series?.[result.series.length - 1]?.btcUsd || 85000;
 
@@ -123,6 +129,7 @@ export default function App() {
         withdrawal={withdrawal} setWithdrawal={setWithdrawal}
         gasOverride={gasOverride} setGasOverride={setGasOverride}
         slippage={slippage} setSlippage={setSlippage}
+        rebalanceDelay={rebalanceDelay} setRebalanceDelay={setRebalanceDelay}
       />
 
       {/* Metrics */}
@@ -147,7 +154,7 @@ export default function App() {
         <div className="min-h-[500px]">
           {activeTab === 'overview' && (
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-              <div className="xl:col-span-2"><MainChart series={result.series} benchmark={benchmark} /></div>
+              <div className="xl:col-span-2"><MainChart series={result.series} benchmark={benchmark} withdrawal={withdrawal} withdrawalResult={withdrawalResult} /></div>
               <div><CostSummary costs={result.costs} metrics={result.metrics} benchmark={benchmark} btcUsd={btcUsd} /></div>
             </div>
           )}

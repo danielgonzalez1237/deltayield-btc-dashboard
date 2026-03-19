@@ -27,24 +27,39 @@ function ChartTooltip({ active, payload, label, benchmark }) {
   );
 }
 
-export default function MainChart({ series, benchmark }) {
+export default function MainChart({ series, benchmark, withdrawal, withdrawalResult }) {
   const [timeRange, setTimeRange] = useState('3y');
   const isUsd = benchmark === 'usd';
+  const hasWithdrawal = withdrawal && withdrawal !== 'none' && withdrawalResult;
 
   const chartData = useMemo(() => {
     const filtered = filterByTimeRange(series, timeRange);
     const step = Math.max(1, Math.floor(filtered.length / 500));
+
+    // Build a date->withdrawalBtc map if we have withdrawal data
+    const wMap = {};
+    if (hasWithdrawal && withdrawalResult?.series) {
+      withdrawalResult.series.forEach(w => { wMap[w.date] = w.btc; });
+    }
+
     return filtered
       .filter((_, i) => i % step === 0 || i === filtered.length - 1)
-      .map(s => ({
-        dateLabel: formatDateShort(s.date),
-        btc: isUsd ? s.btc * s.btcUsd : s.btc,
-        benchmark: isUsd ? 1.0 * s.btcUsd : 1.0,
-      }));
-  }, [series, timeRange, isUsd]);
+      .map(s => {
+        const row = {
+          dateLabel: formatDateShort(s.date),
+          btc: isUsd ? s.btc * s.btcUsd : s.btc,
+          benchmark: isUsd ? 1.0 * s.btcUsd : 1.0,
+        };
+        if (hasWithdrawal && wMap[s.date] != null) {
+          row.withdrawalBtc = isUsd ? wMap[s.date] * s.btcUsd : wMap[s.date];
+        }
+        return row;
+      });
+  }, [series, timeRange, isUsd, hasWithdrawal, withdrawalResult]);
 
-  const yMin = Math.min(...chartData.map(d => Math.min(d.btc, d.benchmark))) * 0.995;
-  const yMax = Math.max(...chartData.map(d => Math.max(d.btc, d.benchmark))) * 1.005;
+  const allVals = chartData.flatMap(d => [d.btc, d.benchmark, ...(d.withdrawalBtc != null ? [d.withdrawalBtc] : [])]);
+  const yMin = Math.min(...allVals) * 0.995;
+  const yMax = Math.max(...allVals) * 1.005;
 
   return (
     <div className="bg-[#0d0d17] border border-[#1a1a2e] rounded-3xl p-8 h-full">
@@ -67,6 +82,12 @@ export default function MainChart({ series, benchmark }) {
               <span className="w-4 h-0.5 bg-[#8888a8] rounded opacity-40" />
               <span className="text-[#8888a8]">HODL</span>
             </span>
+            {hasWithdrawal && (
+              <span className="flex items-center gap-2">
+                <span className="w-4 h-0.5 bg-[#a855f7] rounded" />
+                <span className="text-[#8888a8]">With Withdrawals</span>
+              </span>
+            )}
           </div>
           <TimeRangeSelector value={timeRange} onChange={setTimeRange} />
         </div>
@@ -86,6 +107,7 @@ export default function MainChart({ series, benchmark }) {
           <Tooltip content={<ChartTooltip benchmark={benchmark} />} />
           <Area type="monotone" dataKey="btc" name="Strategy" stroke="#f7931a" fill="url(#btcGradient)" strokeWidth={2.5} dot={false} animationDuration={400} />
           <Line type="monotone" dataKey="benchmark" name="HODL" stroke="#8888a8" strokeWidth={1} strokeDasharray="6 4" strokeOpacity={0.3} dot={false} />
+          {hasWithdrawal && <Line type="monotone" dataKey="withdrawalBtc" name="With Withdrawals" stroke="#a855f7" strokeWidth={2} dot={false} strokeDasharray="4 3" />}
         </ComposedChart>
       </ResponsiveContainer>
     </div>
