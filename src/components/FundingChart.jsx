@@ -9,15 +9,15 @@ import TimeRangeSelector from './TimeRangeSelector';
 function ChartTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-[#16161f] border border-[#2a2a40] rounded-xl px-4 py-3 text-xs shadow-2xl shadow-black/40">
-      <div className="text-[#4e4e66] mb-2 text-[10px] font-semibold uppercase tracking-wider">{label}</div>
+    <div className="bg-[#12121e] border border-[#252540] rounded-2xl px-5 py-4 text-xs shadow-2xl shadow-black/50">
+      <div className="text-[#555570] mb-3 text-[10px] font-semibold uppercase tracking-wider">{label}</div>
       {payload.filter(p => p.value != null).map((p, i) => (
-        <div key={i} className="flex justify-between gap-6 py-0.5">
-          <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color }} />
-            <span className="text-[#7a7a96]">{p.name}</span>
+        <div key={i} className="flex justify-between gap-8 py-1">
+          <span className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: p.color }} />
+            <span className="text-[#8888a8]">{p.name}</span>
           </span>
-          <span className="font-mono text-[#eaeaf2] tabular-nums">{p.value?.toFixed(2)}%</span>
+          <span className="font-mono text-[#f0f0f8] tabular-nums font-semibold">{p.value?.toFixed(2)}%</span>
         </div>
       ))}
     </div>
@@ -26,9 +26,9 @@ function ChartTooltip({ active, payload, label }) {
 
 function StatPill({ label, value, color }) {
   return (
-    <div className="bg-[#111119] border border-[#1f1f30] rounded-2xl px-5 py-4 flex-1 min-w-[130px]">
-      <div className="text-[10px] text-[#4e4e66] uppercase tracking-wider mb-1">{label}</div>
-      <div className={`text-lg font-mono font-semibold tabular-nums ${color}`}>{value}</div>
+    <div className="bg-[#0d0d17] border border-[#1a1a2e] rounded-2xl px-6 py-5 flex-1 min-w-[140px]">
+      <div className="text-[11px] text-[#555570] uppercase tracking-wider font-semibold mb-2">{label}</div>
+      <div className={`text-xl font-mono font-bold tabular-nums ${color}`}>{value}</div>
     </div>
   );
 }
@@ -71,60 +71,60 @@ export default function FundingChart({ series }) {
   const aMax = aAll.length ? Math.max(...aAll) : 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="flex gap-4 flex-wrap">
-        <StatPill label="Avg Funding" value={`${fAvg.toFixed(2)}%`} color="text-[#c084fc]" />
-        <StatPill label="Min Funding" value={`${fMin.toFixed(2)}%`} color="text-[#f87171]" />
-        <StatPill label="Max Funding" value={`${fMax.toFixed(2)}%`} color="text-[#34d399]" />
-        <StatPill label="Positive Days" value={`${fPos}%`} color="text-[#34d399]" />
-        <StatPill label="Avg Pool APY" value={`${aAvg.toFixed(2)}%`} color="text-[#60a5fa]" />
-        <StatPill label="Min APY" value={`${aMin.toFixed(2)}%`} color="text-[#f87171]" />
-        <StatPill label="Max APY" value={`${aMax.toFixed(2)}%`} color="text-[#34d399]" />
+        <StatPill label="Avg Funding" value={`${fAvg.toFixed(2)}%`} color="text-[#a855f7]" />
+        <StatPill label="Min Funding" value={`${fMin.toFixed(2)}%`} color="text-[#ef4444]" />
+        <StatPill label="Max Funding" value={`${fMax.toFixed(2)}%`} color="text-[#22c55e]" />
+        <StatPill label="Positive Days" value={`${fPos}%`} color="text-[#22c55e]" />
+        <StatPill label="Avg Pool APY" value={`${aAvg.toFixed(2)}%`} color="text-[#3b82f6]" />
+        <StatPill label="Min APY" value={`${aMin.toFixed(2)}%`} color="text-[#ef4444]" />
+        <StatPill label="Max APY" value={`${aMax.toFixed(2)}%`} color="text-[#22c55e]" />
       </div>
 
       {/* Funding Rate */}
-      <div className="bg-[#111119] border border-[#1f1f30] rounded-2xl p-6">
-        <div className="flex items-center justify-between mb-4">
+      <div className="bg-[#0d0d17] border border-[#1a1a2e] rounded-3xl p-8">
+        <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-sm font-semibold text-[#eaeaf2]">Funding Rate</h2>
-            <p className="text-[10px] text-[#4e4e66] mt-0.5">Annualized % — Weekly avg (Binance pre-2023, Hyperliquid post-2023)</p>
+            <h2 className="text-base font-bold text-[#f0f0f8]">Funding Rate</h2>
+            <p className="text-[11px] text-[#555570] mt-1">Annualized % — Weekly avg (Binance pre-2023, Hyperliquid post-2023)</p>
           </div>
           <TimeRangeSelector value={fundingRange} onChange={setFundingRange} />
         </div>
-        <ResponsiveContainer width="100%" height={280}>
+        <ResponsiveContainer width="100%" height={300}>
           <ComposedChart data={fundingData} margin={{ top: 5, right: 10, left: -5, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.025)" />
-            <XAxis dataKey="dateLabel" tick={{ fontSize: 10, fill: '#4e4e66' }} axisLine={{ stroke: '#1f1f30' }} tickLine={false} interval={Math.floor(fundingData.length / 7)} />
-            <YAxis tick={{ fontSize: 10, fill: '#4e4e66' }} axisLine={false} tickLine={false} />
+            <XAxis dataKey="dateLabel" tick={{ fontSize: 10, fill: '#555570' }} axisLine={{ stroke: '#1a1a2e' }} tickLine={false} interval={Math.floor(fundingData.length / 7)} />
+            <YAxis tick={{ fontSize: 10, fill: '#555570' }} axisLine={false} tickLine={false} />
             <Tooltip content={<ChartTooltip />} />
-            <ReferenceLine y={0} stroke="#7a7a96" strokeOpacity={0.2} />
-            <Bar dataKey="funding" name="Funding Rate" fill="#c084fc" fillOpacity={0.5} radius={[2, 2, 0, 0]} />
+            <ReferenceLine y={0} stroke="#8888a8" strokeOpacity={0.15} />
+            <Bar dataKey="funding" name="Funding Rate" fill="#a855f7" fillOpacity={0.5} radius={[2, 2, 0, 0]} />
           </ComposedChart>
         </ResponsiveContainer>
       </div>
 
       {/* Pool APY */}
-      <div className="bg-[#111119] border border-[#1f1f30] rounded-2xl p-6">
-        <div className="flex items-center justify-between mb-4">
+      <div className="bg-[#0d0d17] border border-[#1a1a2e] rounded-3xl p-8">
+        <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-sm font-semibold text-[#eaeaf2]">Pool APY</h2>
-            <p className="text-[10px] text-[#4e4e66] mt-0.5">Weekly average — adjusted by 0.94x multiplier in backtest</p>
+            <h2 className="text-base font-bold text-[#f0f0f8]">Pool APY</h2>
+            <p className="text-[11px] text-[#555570] mt-1">Weekly average — adjusted by 0.94x multiplier in backtest</p>
           </div>
           <TimeRangeSelector value={apyRange} onChange={setApyRange} />
         </div>
-        <ResponsiveContainer width="100%" height={280}>
+        <ResponsiveContainer width="100%" height={300}>
           <ComposedChart data={apyData} margin={{ top: 5, right: 10, left: -5, bottom: 0 }}>
             <defs>
               <linearGradient id="apyGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#60a5fa" stopOpacity={0.1} />
-                <stop offset="100%" stopColor="#60a5fa" stopOpacity={0} />
+                <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.1} />
+                <stop offset="100%" stopColor="#3b82f6" stopOpacity={0} />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.025)" />
-            <XAxis dataKey="dateLabel" tick={{ fontSize: 10, fill: '#4e4e66' }} axisLine={{ stroke: '#1f1f30' }} tickLine={false} interval={Math.floor(apyData.length / 7)} />
-            <YAxis tick={{ fontSize: 10, fill: '#4e4e66' }} axisLine={false} tickLine={false} />
+            <XAxis dataKey="dateLabel" tick={{ fontSize: 10, fill: '#555570' }} axisLine={{ stroke: '#1a1a2e' }} tickLine={false} interval={Math.floor(apyData.length / 7)} />
+            <YAxis tick={{ fontSize: 10, fill: '#555570' }} axisLine={false} tickLine={false} />
             <Tooltip content={<ChartTooltip />} />
-            <Line type="monotone" dataKey="apy" name="Pool APY" stroke="#60a5fa" strokeWidth={1.5} dot={false} fill="url(#apyGrad)" />
+            <Line type="monotone" dataKey="apy" name="Pool APY" stroke="#3b82f6" strokeWidth={1.5} dot={false} fill="url(#apyGrad)" />
           </ComposedChart>
         </ResponsiveContainer>
       </div>

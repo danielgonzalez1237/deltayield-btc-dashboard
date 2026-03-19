@@ -1,12 +1,14 @@
-function Stat({ label, value, unit, color, glow }) {
+function Stat({ label, value, unit, color, highlight }) {
   return (
-    <div className={`bg-[#111119] border border-[#1f1f30] rounded-2xl px-5 py-4 min-w-[140px] flex-1 ${glow || ''}`}>
-      <div className="text-[10px] text-[#4e4e66] font-semibold uppercase tracking-[0.08em] mb-2">{label}</div>
-      <div className="flex items-baseline gap-1">
-        <span className={`text-xl font-semibold font-mono tabular-nums tracking-tight ${color || 'text-[#eaeaf2]'}`}>
+    <div className={`bg-[#0d0d17] border rounded-2xl px-6 py-5 min-w-[150px] flex-1 transition-all ${
+      highlight ? 'border-[#f7931a]/20 shadow-[0_0_24px_rgba(247,147,26,0.04)]' : 'border-[#1a1a2e]'
+    }`}>
+      <div className="text-[11px] text-[#555570] font-semibold uppercase tracking-[0.1em] mb-2.5">{label}</div>
+      <div className="flex items-baseline gap-1.5">
+        <span className={`text-2xl font-bold font-mono tabular-nums tracking-tight ${color || 'text-[#f0f0f8]'}`}>
           {value}
         </span>
-        {unit && <span className="text-[10px] text-[#4e4e66] font-medium">{unit}</span>}
+        {unit && <span className="text-[11px] text-[#555570] font-medium">{unit}</span>}
       </div>
     </div>
   );
@@ -21,20 +23,18 @@ export default function MetricsBar({ metrics, costs, benchmark, btcUsd }) {
   const fmt = (v) => isUsd ? `$${(v * mul).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : v.toFixed(4);
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-5 mb-7">
+    <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-4 mb-10">
       <Stat label="Final Balance" value={fmt(finalBtc)} unit={isUsd ? '' : unit}
-        color="text-[#f7931a]"
-        glow="shadow-[inset_0_1px_0_rgba(247,147,26,0.08),0_0_20px_rgba(247,147,26,0.03)]" />
+        color="text-[#f7931a]" highlight={true} />
       <Stat label="Net Gain" value={netGain >= 0 ? `+${fmt(netGain)}` : fmt(netGain)} unit={isUsd ? '' : unit}
-        color={netGain >= 0 ? 'text-[#34d399]' : 'text-[#f87171]'}
-        glow={netGain >= 0 ? 'shadow-[inset_0_1px_0_rgba(52,211,153,0.08),0_0_20px_rgba(52,211,153,0.03)]' : ''} />
+        color={netGain >= 0 ? 'text-[#22c55e]' : 'text-[#ef4444]'} />
       <Stat label="CAGR" value={`${cagr.toFixed(2)}%`}
-        color={cagr >= 0 ? 'text-[#34d399]' : 'text-[#f87171]'} />
-      <Stat label="Max Drawdown" value={`${maxDD.toFixed(2)}%`} color="text-[#f87171]" />
-      <Stat label="CAGR/DD" value={cagrDdRatio === Infinity ? '∞' : cagrDdRatio.toFixed(1)} color="text-[#60a5fa]" />
+        color={cagr >= 0 ? 'text-[#22c55e]' : 'text-[#ef4444]'} />
+      <Stat label="Max Drawdown" value={`${maxDD.toFixed(2)}%`} color="text-[#ef4444]" />
+      <Stat label="CAGR/DD" value={cagrDdRatio === Infinity ? '∞' : cagrDdRatio.toFixed(1)} color="text-[#3b82f6]" />
       <Stat label="Rebalances" value={rebalanceCount} />
       <Stat label="Active Days" value={activeDays.toLocaleString()} />
-      <Stat label="Max Hedge" value={maxHedgeExposure ? `${maxHedgeExposure.toFixed(4)}` : 'N/A'} unit={maxHedgeExposure ? 'BTC' : ''} color="text-[#c084fc]" />
+      <Stat label="Max Hedge" value={maxHedgeExposure ? `${maxHedgeExposure.toFixed(4)}` : 'N/A'} unit={maxHedgeExposure ? 'BTC' : ''} color="text-[#a855f7]" />
     </div>
   );
 }

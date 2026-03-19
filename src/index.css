@@ -1,28 +1,28 @@
 @import "tailwindcss";
 
 @theme {
-  --color-bg-primary: #080810;
-  --color-bg-card: #111119;
-  --color-bg-card-alt: #16161f;
-  --color-bg-hover: #1a1a28;
-  --color-bg-input: #0c0c14;
-  --color-border: #1f1f30;
-  --color-border-light: #2a2a40;
-  --color-text-primary: #eaeaf2;
-  --color-text-secondary: #7a7a96;
-  --color-text-muted: #4e4e66;
+  --color-bg-primary: #06060e;
+  --color-bg-card: #0d0d17;
+  --color-bg-card-alt: #12121e;
+  --color-bg-hover: #16162a;
+  --color-bg-input: #0a0a14;
+  --color-border: #1a1a2e;
+  --color-border-light: #252540;
+  --color-text-primary: #f0f0f8;
+  --color-text-secondary: #8888a8;
+  --color-text-muted: #555570;
   --color-accent: #f7931a;
   --color-accent-soft: rgba(247, 147, 26, 0.10);
-  --color-green: #34d399;
-  --color-green-soft: rgba(52, 211, 153, 0.10);
-  --color-red: #f87171;
-  --color-red-soft: rgba(248, 113, 113, 0.10);
-  --color-blue: #60a5fa;
-  --color-blue-soft: rgba(96, 165, 250, 0.10);
-  --color-purple: #c084fc;
-  --color-purple-soft: rgba(192, 132, 252, 0.10);
+  --color-green: #22c55e;
+  --color-green-soft: rgba(34, 197, 94, 0.10);
+  --color-red: #ef4444;
+  --color-red-soft: rgba(239, 68, 68, 0.10);
+  --color-blue: #3b82f6;
+  --color-blue-soft: rgba(59, 130, 246, 0.10);
+  --color-purple: #a855f7;
+  --color-purple-soft: rgba(168, 85, 247, 0.10);
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --font-mono: 'JetBrains Mono', 'SF Mono', ui-monospace, monospace;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -35,7 +35,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 10px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--color-border-light); }
@@ -57,10 +57,10 @@ input[type="range"] {
 }
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background: var(--color-accent);
   cursor: pointer;
-  box-shadow: 0 0 8px rgba(247,147,26,0.3);
+  box-shadow: 0 0 12px rgba(247,147,26,0.4);
 }

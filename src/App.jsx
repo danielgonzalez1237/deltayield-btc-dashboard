@@ -63,9 +63,9 @@ export default function App() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center space-y-3">
-          <div className="w-10 h-10 rounded-full border-2 border-[#f7931a] border-t-transparent animate-spin mx-auto" />
-          <div className="text-[#7a7a96] text-sm">Loading real data...</div>
+        <div className="text-center space-y-4">
+          <div className="w-12 h-12 rounded-full border-2 border-[#f7931a] border-t-transparent animate-spin mx-auto" />
+          <div className="text-[#8888a8] text-sm font-medium">Loading real data...</div>
         </div>
       </div>
     );
@@ -74,42 +74,46 @@ export default function App() {
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-[#f87171] bg-[rgba(248,113,113,0.08)] border border-[rgba(248,113,113,0.2)] rounded-xl px-6 py-4">Error: {error}</div>
+        <div className="text-[#ef4444] bg-[rgba(239,68,68,0.06)] border border-[rgba(239,68,68,0.15)] rounded-2xl px-8 py-5 text-sm">Error: {error}</div>
       </div>
     );
   }
 
   const tabs = [
-    { id: 'overview', label: 'Overview', icon: '◎' },
-    { id: 'price', label: 'Price & Ranges', icon: '◇' },
-    { id: 'positions', label: 'Positions', icon: '▦' },
-    { id: 'funding', label: 'Funding & APY', icon: '⟡' },
-    { id: 'scenarios', label: 'Scenarios', icon: '⊞' },
-    { id: 'withdrawal', label: 'Withdrawals', icon: '↗' },
-    { id: 'hybrid', label: 'Hybrid 50/50', icon: '⬡' },
+    { id: 'overview', label: 'Overview' },
+    { id: 'price', label: 'Price & Ranges' },
+    { id: 'positions', label: 'Positions' },
+    { id: 'funding', label: 'Funding & APY' },
+    { id: 'scenarios', label: 'Scenarios' },
+    { id: 'withdrawal', label: 'Withdrawals' },
+    { id: 'hybrid', label: 'Hybrid 50/50' },
   ];
 
   return (
-    <div className="min-h-screen max-w-[1440px] mx-auto px-6 py-8">
-      <header className="flex items-center justify-between mb-8">
-        <div className="flex items-center gap-4">
-          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#f7931a] to-[#e67e00] flex items-center justify-center text-black font-bold text-lg shadow-[0_0_24px_rgba(247,147,26,0.2)]">D</div>
+    <div className="min-h-screen max-w-[1480px] mx-auto px-8 py-10">
+      {/* Header */}
+      <header className="flex items-center justify-between mb-10">
+        <div className="flex items-center gap-5">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#f7931a] to-[#d97706] flex items-center justify-center text-white font-bold text-xl shadow-[0_0_30px_rgba(247,147,26,0.15)]">
+            D
+          </div>
           <div>
-            <h1 className="text-xl font-semibold text-[#eaeaf2] tracking-tight">DeltaYield V3</h1>
-            <p className="text-xs text-[#7a7a96] mt-1">WBTC/WETH Concentrated Liquidity — Real Data Only</p>
+            <h1 className="text-2xl font-bold text-[#f0f0f8] tracking-tight">DeltaYield V3</h1>
+            <p className="text-sm text-[#555570] mt-1">WBTC/WETH Concentrated Liquidity — Real Data Only</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="text-[10px] text-[#4e4e66] bg-[#0c0c14] border border-[#1f1f30] rounded-lg px-3 py-1.5">
+        <div className="flex items-center gap-4">
+          <span className="text-xs text-[#555570] bg-[#0a0a14] border border-[#1a1a2e] rounded-xl px-4 py-2.5 font-medium">
             {benchmark === 'usd' ? `1 BTC = $${btcUsd.toLocaleString()}` : '1,893 days of real data'}
           </span>
-          <span className="flex items-center gap-1.5 text-[10px] text-[#4e4e66]">
-            <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#34d399] animate-pulse" />
+          <span className="flex items-center gap-2 text-xs text-[#555570]">
+            <span className="inline-block w-2 h-2 rounded-full bg-[#22c55e] animate-pulse" />
             Live engine
           </span>
         </div>
       </header>
 
+      {/* Config */}
       <ConfigPanel
         feeTier={feeTier} setFeeTier={setFeeTier}
         timing={timing} setTiming={setTiming}
@@ -121,25 +125,28 @@ export default function App() {
         slippage={slippage} setSlippage={setSlippage}
       />
 
+      {/* Metrics */}
       {result && <MetricsBar metrics={result.metrics} costs={result.costs} benchmark={benchmark} btcUsd={btcUsd} />}
 
-      <nav className="flex gap-1.5 mb-7 bg-[#0c0c14] rounded-2xl p-2 border border-[#1f1f30] w-fit overflow-x-auto">
+      {/* Tab Navigation */}
+      <nav className="flex gap-1 mb-10 bg-[#0a0a14] border border-[#1a1a2e] rounded-2xl p-2 w-fit overflow-x-auto">
         {tabs.map(tab => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-            className={`relative px-5 py-2.5 text-[12px] font-medium rounded-xl transition-all duration-200 whitespace-nowrap ${
+            className={`px-6 py-3 text-[13px] font-semibold rounded-xl transition-all duration-200 whitespace-nowrap ${
               activeTab === tab.id
-                ? 'bg-[#111119] text-[#f7931a] shadow-[0_2px_6px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.03)]'
-                : 'text-[#7a7a96] hover:text-[#eaeaf2] hover:bg-[rgba(255,255,255,0.03)]'
+                ? 'bg-[#f7931a] text-black shadow-[0_2px_12px_rgba(247,147,26,0.3)]'
+                : 'text-[#555570] hover:text-[#f0f0f8] hover:bg-[rgba(255,255,255,0.04)]'
             }`}>
-            <span className="mr-2 opacity-50">{tab.icon}</span>{tab.label}
+            {tab.label}
           </button>
         ))}
       </nav>
 
+      {/* Content */}
       {result && (
-        <>
+        <div className="min-h-[500px]">
           {activeTab === 'overview' && (
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
               <div className="xl:col-span-2"><MainChart series={result.series} benchmark={benchmark} /></div>
               <div><CostSummary costs={result.costs} metrics={result.metrics} benchmark={benchmark} btcUsd={btcUsd} /></div>
             </div>
@@ -152,10 +159,11 @@ export default function App() {
           {activeTab === 'hybrid' && hybridResult && arbOnlyResult && ethOnlyResult && (
             <HybridChart hybridResult={hybridResult} arbOnlyResult={arbOnlyResult} ethOnlyResult={ethOnlyResult} benchmark={benchmark} />
           )}
-        </>
+        </div>
       )}
 
-      <footer className="mt-14 py-5 border-t border-[#1f1f30] flex items-center justify-between text-[10px] text-[#4e4e66]">
+      {/* Footer */}
+      <footer className="mt-16 py-6 border-t border-[#1a1a2e] flex items-center justify-between text-xs text-[#555570]">
         <span>DeltaYield V3 — Zero synthetic data — {benchmark === 'usd' ? 'USD Mode' : 'BTC Benchmark'}</span>
         <span>The Graph + Binance + Hyperliquid — 01/01/2021 to 08/03/2026</span>
       </footer>
