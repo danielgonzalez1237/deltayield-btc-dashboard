@@ -1,0 +1,66 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg-primary: #080810;
+  --color-bg-card: #111119;
+  --color-bg-card-alt: #16161f;
+  --color-bg-hover: #1a1a28;
+  --color-bg-input: #0c0c14;
+  --color-border: #1f1f30;
+  --color-border-light: #2a2a40;
+  --color-text-primary: #eaeaf2;
+  --color-text-secondary: #7a7a96;
+  --color-text-muted: #4e4e66;
+  --color-accent: #f7931a;
+  --color-accent-soft: rgba(247, 147, 26, 0.10);
+  --color-green: #34d399;
+  --color-green-soft: rgba(52, 211, 153, 0.10);
+  --color-red: #f87171;
+  --color-red-soft: rgba(248, 113, 113, 0.10);
+  --color-blue: #60a5fa;
+  --color-blue-soft: rgba(96, 165, 250, 0.10);
+  --color-purple: #c084fc;
+  --color-purple-soft: rgba(192, 132, 252, 0.10);
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-border-light); }
+
+/* Recharts */
+.recharts-tooltip-wrapper { z-index: 100 !important; }
+.recharts-cartesian-grid-horizontal line,
+.recharts-cartesian-grid-vertical line { stroke: rgba(255,255,255,0.03); }
+.recharts-legend-item-text { color: var(--color-text-secondary) !important; font-size: 11px !important; }
+
+/* Custom range input */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  background: var(--color-border);
+  border-radius: 2px;
+  outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  cursor: pointer;
+  box-shadow: 0 0 8px rgba(247,147,26,0.3);
+}
