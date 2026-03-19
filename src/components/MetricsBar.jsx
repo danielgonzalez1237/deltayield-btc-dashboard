@@ -12,47 +12,29 @@ function Stat({ label, value, unit, color, glow }) {
   );
 }
 
-export default function MetricsBar({ metrics, costs }) {
-  const { finalBtc, cagr, maxDD, cagrDdRatio, rebalanceCount, activeDays, years } = metrics;
+export default function MetricsBar({ metrics, costs, benchmark, btcUsd }) {
+  const { finalBtc, cagr, maxDD, cagrDdRatio, rebalanceCount, activeDays, years, maxHedgeExposure } = metrics;
   const netGain = costs.net;
+  const isUsd = benchmark === 'usd';
+  const mul = isUsd ? btcUsd : 1;
+  const unit = isUsd ? 'USD' : 'BTC';
+  const fmt = (v) => isUsd ? `$${(v * mul).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : v.toFixed(4);
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-3 mb-5">
-      <Stat
-        label="Final Balance"
-        value={finalBtc.toFixed(4)}
-        unit="BTC"
+      <Stat label="Final Balance" value={fmt(finalBtc)} unit={isUsd ? '' : unit}
         color="text-[#f7931a]"
-        glow="shadow-[inset_0_1px_0_rgba(247,147,26,0.08),0_0_20px_rgba(247,147,26,0.03)]"
-      />
-      <Stat
-        label="Net Gain"
-        value={netGain >= 0 ? `+${netGain.toFixed(4)}` : netGain.toFixed(4)}
-        unit="BTC"
+        glow="shadow-[inset_0_1px_0_rgba(247,147,26,0.08),0_0_20px_rgba(247,147,26,0.03)]" />
+      <Stat label="Net Gain" value={netGain >= 0 ? `+${fmt(netGain)}` : fmt(netGain)} unit={isUsd ? '' : unit}
         color={netGain >= 0 ? 'text-[#34d399]' : 'text-[#f87171]'}
-        glow={netGain >= 0
-          ? 'shadow-[inset_0_1px_0_rgba(52,211,153,0.08),0_0_20px_rgba(52,211,153,0.03)]'
-          : 'shadow-[inset_0_1px_0_rgba(248,113,113,0.08)]'
-        }
-      />
-      <Stat
-        label="CAGR"
-        value={`${cagr.toFixed(2)}%`}
-        color={cagr >= 0 ? 'text-[#34d399]' : 'text-[#f87171]'}
-      />
-      <Stat
-        label="Max Drawdown"
-        value={`${maxDD.toFixed(2)}%`}
-        color="text-[#f87171]"
-      />
-      <Stat
-        label="CAGR/DD"
-        value={cagrDdRatio.toFixed(1)}
-        color="text-[#60a5fa]"
-      />
+        glow={netGain >= 0 ? 'shadow-[inset_0_1px_0_rgba(52,211,153,0.08),0_0_20px_rgba(52,211,153,0.03)]' : ''} />
+      <Stat label="CAGR" value={`${cagr.toFixed(2)}%`}
+        color={cagr >= 0 ? 'text-[#34d399]' : 'text-[#f87171]'} />
+      <Stat label="Max Drawdown" value={`${maxDD.toFixed(2)}%`} color="text-[#f87171]" />
+      <Stat label="CAGR/DD" value={cagrDdRatio === Infinity ? '∞' : cagrDdRatio.toFixed(1)} color="text-[#60a5fa]" />
       <Stat label="Rebalances" value={rebalanceCount} />
       <Stat label="Active Days" value={activeDays.toLocaleString()} />
-      <Stat label="Period" value={`${years.toFixed(1)}y`} />
+      <Stat label="Max Hedge" value={maxHedgeExposure ? `${maxHedgeExposure.toFixed(4)}` : 'N/A'} unit={maxHedgeExposure ? 'BTC' : ''} color="text-[#c084fc]" />
     </div>
   );
 }
