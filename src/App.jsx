@@ -129,10 +129,10 @@ export default function App() {
       {result && <MetricsBar metrics={result.metrics} costs={result.costs} benchmark={benchmark} btcUsd={btcUsd} />}
 
       {/* Tab Navigation */}
-      <nav className="flex gap-1 mb-10 bg-[#0a0a14] border border-[#1a1a2e] rounded-2xl p-2 w-fit overflow-x-auto">
+      <nav className="flex gap-1 mb-10 bg-[#0a0a14] border border-[#1a1a2e] rounded-xl p-1.5 w-fit overflow-x-auto">
         {tabs.map(tab => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-            className={`px-6 py-3 text-[13px] font-semibold rounded-xl transition-all duration-200 whitespace-nowrap ${
+            className={`px-5 py-2.5 text-[13px] font-semibold rounded-lg transition-all duration-200 whitespace-nowrap ${
               activeTab === tab.id
                 ? 'bg-[#f7931a] text-black shadow-[0_2px_12px_rgba(247,147,26,0.3)]'
                 : 'text-[#555570] hover:text-[#f0f0f8] hover:bg-[rgba(255,255,255,0.04)]'

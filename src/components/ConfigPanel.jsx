@@ -4,12 +4,12 @@ function PillToggle({ label, value, onChange, options }) {
   return (
     <div className="space-y-3">
       <span className="text-[11px] text-[#555570] font-semibold uppercase tracking-[0.12em] block">{label}</span>
-      <div className="inline-flex bg-[#0a0a14] border border-[#1a1a2e] rounded-2xl p-1.5 gap-1.5">
+      <div className="inline-flex bg-[#0a0a14] border border-[#1a1a2e] rounded-xl p-1 gap-1">
         {options.map(opt => (
           <button
             key={String(opt.value)}
             onClick={() => onChange(opt.value)}
-            className={`px-5 py-2.5 text-[12px] font-semibold rounded-xl transition-all duration-200 whitespace-nowrap ${
+            className={`px-4 py-2 text-[12px] font-semibold rounded-lg transition-all duration-200 whitespace-nowrap ${
               value === opt.value
                 ? 'bg-[#f7931a] text-black shadow-[0_2px_12px_rgba(247,147,26,0.3)]'
                 : 'text-[#8888a8] hover:text-[#f0f0f8] hover:bg-[rgba(255,255,255,0.04)]'
@@ -68,7 +68,7 @@ export default function ConfigPanel({
         <div className="space-y-3">
           <span className="text-[11px] text-[#555570] font-semibold uppercase tracking-[0.12em] block">Gas</span>
           <button onClick={() => setGasOpen(!gasOpen)}
-            className={`flex items-center gap-3 px-5 py-2.5 text-[12px] font-semibold rounded-2xl border transition-all duration-200 ${
+            className={`flex items-center gap-3 px-4 py-2 text-[12px] font-semibold rounded-xl border transition-all duration-200 ${
               gasOverride !== null
                 ? 'border-[#f7931a] bg-[rgba(247,147,26,0.06)] text-[#f7931a]'
                 : 'border-[#1a1a2e] bg-[#0a0a14] text-[#8888a8] hover:text-[#f0f0f8]'
@@ -81,7 +81,7 @@ export default function ConfigPanel({
         {/* Slippage */}
         <div className="space-y-3">
           <span className="text-[11px] text-[#555570] font-semibold uppercase tracking-[0.12em] block">Slippage</span>
-          <div className="flex items-center gap-4 bg-[#0a0a14] border border-[#1a1a2e] rounded-2xl px-5 py-2.5">
+          <div className="flex items-center gap-4 bg-[#0a0a14] border border-[#1a1a2e] rounded-xl px-4 py-2">
             <input type="range" min="0" max="50" value={slippage * 10000}
               onChange={e => setSlippage(parseInt(e.target.value) / 10000)} className="w-28" />
             <span className="text-[12px] font-mono text-[#f0f0f8] tabular-nums min-w-[50px] text-right font-semibold">
