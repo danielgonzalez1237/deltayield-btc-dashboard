@@ -61,17 +61,17 @@ export default function WithdrawalChart({ series, benchmark }) {
   }, [series, results, timeRange, isUsd]);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       {/* Summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <div className="bg-[#111119] border border-[#1f1f30] rounded-xl px-4 py-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="bg-[#111119] border border-[#1f1f30] rounded-2xl px-5 py-4">
           <div className="text-[10px] text-[#4e4e66] uppercase tracking-wider mb-1">Compound (No Withdrawal)</div>
           <div className="text-lg font-mono font-semibold text-[#f7931a] tabular-nums">
             {isUsd ? `$${(series[series.length - 1]?.btc * series[series.length - 1]?.btcUsd).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : series[series.length - 1]?.btc.toFixed(4)}
           </div>
         </div>
         {FREQS.map(freq => (
-          <div key={freq} className="bg-[#111119] border border-[#1f1f30] rounded-xl px-4 py-3">
+          <div key={freq} className="bg-[#111119] border border-[#1f1f30] rounded-2xl px-5 py-4">
             <div className="text-[10px] text-[#4e4e66] uppercase tracking-wider mb-1">{FREQ_LABELS[freq]}</div>
             <div className="text-sm font-mono tabular-nums" style={{ color: FREQ_COLORS[freq] }}>
               Balance: {isUsd ? `$${(results[freq].finalBalance * (series[series.length - 1]?.btcUsd || 85000)).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : results[freq].finalBalance.toFixed(4)}
@@ -85,7 +85,7 @@ export default function WithdrawalChart({ series, benchmark }) {
       </div>
 
       {/* Chart */}
-      <div className="bg-[#111119] border border-[#1f1f30] rounded-2xl p-5">
+      <div className="bg-[#111119] border border-[#1f1f30] rounded-2xl p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-sm font-semibold text-[#eaeaf2]">Withdrawal Simulator</h2>

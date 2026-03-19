@@ -21,7 +21,7 @@ export default function CostSummary({ costs, metrics, benchmark, btcUsd }) {
   ];
 
   return (
-    <div className="bg-[#111119] border border-[#1f1f30] rounded-2xl p-5 h-full flex flex-col">
+    <div className="bg-[#111119] border border-[#1f1f30] rounded-2xl p-6 h-full flex flex-col">
       <h2 className="text-sm font-semibold text-[#eaeaf2] mb-1">P&L Breakdown</h2>
       <p className="text-[10px] text-[#4e4e66] mb-4">All values in {unit}</p>
 

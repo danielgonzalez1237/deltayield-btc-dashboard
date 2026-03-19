@@ -47,7 +47,7 @@ export default function MainChart({ series, benchmark }) {
   const yMax = Math.max(...chartData.map(d => Math.max(d.btc, d.benchmark))) * 1.005;
 
   return (
-    <div className="bg-[#111119] border border-[#1f1f30] rounded-2xl p-5 h-full">
+    <div className="bg-[#111119] border border-[#1f1f30] rounded-2xl p-6 h-full">
       <div className="flex items-center justify-between mb-5">
         <div>
           <h2 className="text-sm font-semibold text-[#eaeaf2]">

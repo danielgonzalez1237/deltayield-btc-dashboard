@@ -7,7 +7,7 @@ export default function ScenarioTable({ scenarios, benchmark, btcUsd }) {
   const fmt = (v) => isUsd ? `$${(v * mul).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : v.toFixed(4);
 
   return (
-    <div className="bg-[#111119] border border-[#1f1f30] rounded-2xl p-5">
+    <div className="bg-[#111119] border border-[#1f1f30] rounded-2xl p-6">
       <div className="mb-5">
         <h2 className="text-sm font-semibold text-[#eaeaf2]">Scenario Comparison</h2>
         <p className="text-[10px] text-[#4e4e66] mt-0.5">All 10 configurations ranked by CAGR (8 base + 2 hybrid)</p>

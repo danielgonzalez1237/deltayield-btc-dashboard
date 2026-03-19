@@ -28,7 +28,7 @@ function PositionCard({ position, index, benchmark, btcUsd }) {
   const fmtBtc = (v) => isUsd ? `$${(v * mul).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : v.toFixed(5);
 
   return (
-    <div className={`bg-[#111119] border rounded-xl overflow-hidden transition-colors ${open ? 'border-[#2a2a40]' : 'border-[#1f1f30]'}`}>
+    <div className={`bg-[#111119] border rounded-2xl overflow-hidden transition-colors ${open ? 'border-[#2a2a40]' : 'border-[#1f1f30]'}`}>
       <button onClick={() => setOpen(!open)}
         className="w-full px-5 py-4 flex items-center justify-between hover:bg-[rgba(255,255,255,0.01)] transition-colors text-left">
         <div className="flex items-center gap-4">
@@ -96,8 +96,8 @@ function PositionCard({ position, index, benchmark, btcUsd }) {
 
 export default function PositionCards({ positions, benchmark, btcUsd }) {
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between mb-3">
+    <div className="space-y-3">
+      <div className="flex items-center justify-between mb-4">
         <h2 className="text-sm font-semibold text-[#eaeaf2]">
           Positions
           <span className="ml-2 text-[10px] font-normal text-[#4e4e66] bg-[#0c0c14] border border-[#1f1f30] px-2 py-0.5 rounded-full">

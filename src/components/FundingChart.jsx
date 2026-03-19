@@ -26,7 +26,7 @@ function ChartTooltip({ active, payload, label }) {
 
 function StatPill({ label, value, color }) {
   return (
-    <div className="bg-[#111119] border border-[#1f1f30] rounded-xl px-4 py-3 flex-1 min-w-[120px]">
+    <div className="bg-[#111119] border border-[#1f1f30] rounded-2xl px-5 py-4 flex-1 min-w-[130px]">
       <div className="text-[10px] text-[#4e4e66] uppercase tracking-wider mb-1">{label}</div>
       <div className={`text-lg font-mono font-semibold tabular-nums ${color}`}>{value}</div>
     </div>
@@ -71,8 +71,8 @@ export default function FundingChart({ series }) {
   const aMax = aAll.length ? Math.max(...aAll) : 0;
 
   return (
-    <div className="space-y-5">
-      <div className="flex gap-3 flex-wrap">
+    <div className="space-y-6">
+      <div className="flex gap-4 flex-wrap">
         <StatPill label="Avg Funding" value={`${fAvg.toFixed(2)}%`} color="text-[#c084fc]" />
         <StatPill label="Min Funding" value={`${fMin.toFixed(2)}%`} color="text-[#f87171]" />
         <StatPill label="Max Funding" value={`${fMax.toFixed(2)}%`} color="text-[#34d399]" />
@@ -83,7 +83,7 @@ export default function FundingChart({ series }) {
       </div>
 
       {/* Funding Rate */}
-      <div className="bg-[#111119] border border-[#1f1f30] rounded-2xl p-5">
+      <div className="bg-[#111119] border border-[#1f1f30] rounded-2xl p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-sm font-semibold text-[#eaeaf2]">Funding Rate</h2>
@@ -104,7 +104,7 @@ export default function FundingChart({ series }) {
       </div>
 
       {/* Pool APY */}
-      <div className="bg-[#111119] border border-[#1f1f30] rounded-2xl p-5">
+      <div className="bg-[#111119] border border-[#1f1f30] rounded-2xl p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-sm font-semibold text-[#eaeaf2]">Pool APY</h2>

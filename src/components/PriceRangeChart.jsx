@@ -47,7 +47,7 @@ export default function PriceRangeChart({ series }) {
   const inRangePct = totalOn > 0 ? (inRange / totalOn * 100).toFixed(1) : 0;
 
   return (
-    <div className="bg-[#111119] border border-[#1f1f30] rounded-2xl p-5">
+    <div className="bg-[#111119] border border-[#1f1f30] rounded-2xl p-6">
       <div className="flex items-center justify-between mb-5">
         <div>
           <h2 className="text-sm font-semibold text-[#eaeaf2]">BTC/ETH Price & Range Bounds</h2>

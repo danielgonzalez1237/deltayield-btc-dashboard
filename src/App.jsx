@@ -90,13 +90,13 @@ export default function App() {
   ];
 
   return (
-    <div className="min-h-screen max-w-[1400px] mx-auto px-5 py-6">
-      <header className="flex items-center justify-between mb-7">
+    <div className="min-h-screen max-w-[1440px] mx-auto px-6 py-8">
+      <header className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-4">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#f7931a] to-[#e67e00] flex items-center justify-center text-black font-bold text-lg shadow-[0_0_20px_rgba(247,147,26,0.2)]">D</div>
+          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#f7931a] to-[#e67e00] flex items-center justify-center text-black font-bold text-lg shadow-[0_0_24px_rgba(247,147,26,0.2)]">D</div>
           <div>
             <h1 className="text-xl font-semibold text-[#eaeaf2] tracking-tight">DeltaYield V3</h1>
-            <p className="text-xs text-[#7a7a96] mt-0.5">WBTC/WETH Concentrated Liquidity — Real Data Only</p>
+            <p className="text-xs text-[#7a7a96] mt-1">WBTC/WETH Concentrated Liquidity — Real Data Only</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -123,15 +123,15 @@ export default function App() {
 
       {result && <MetricsBar metrics={result.metrics} costs={result.costs} benchmark={benchmark} btcUsd={btcUsd} />}
 
-      <nav className="flex gap-0.5 mb-5 bg-[#0c0c14] rounded-xl p-1 border border-[#1f1f30] w-fit overflow-x-auto">
+      <nav className="flex gap-1.5 mb-7 bg-[#0c0c14] rounded-2xl p-2 border border-[#1f1f30] w-fit overflow-x-auto">
         {tabs.map(tab => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-            className={`relative px-4 py-2 text-xs font-medium rounded-lg transition-all duration-200 whitespace-nowrap ${
+            className={`relative px-5 py-2.5 text-[12px] font-medium rounded-xl transition-all duration-200 whitespace-nowrap ${
               activeTab === tab.id
-                ? 'bg-[#111119] text-[#f7931a] shadow-[0_1px_4px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.03)]'
-                : 'text-[#7a7a96] hover:text-[#eaeaf2] hover:bg-[rgba(255,255,255,0.02)]'
+                ? 'bg-[#111119] text-[#f7931a] shadow-[0_2px_6px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.03)]'
+                : 'text-[#7a7a96] hover:text-[#eaeaf2] hover:bg-[rgba(255,255,255,0.03)]'
             }`}>
-            <span className="mr-1.5 opacity-60">{tab.icon}</span>{tab.label}
+            <span className="mr-2 opacity-50">{tab.icon}</span>{tab.label}
           </button>
         ))}
       </nav>
@@ -139,7 +139,7 @@ export default function App() {
       {result && (
         <>
           {activeTab === 'overview' && (
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
               <div className="xl:col-span-2"><MainChart series={result.series} benchmark={benchmark} /></div>
               <div><CostSummary costs={result.costs} metrics={result.metrics} benchmark={benchmark} btcUsd={btcUsd} /></div>
             </div>
