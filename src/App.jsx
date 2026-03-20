@@ -153,9 +153,11 @@ export default function App() {
       {result && (
         <div className="min-h-[500px]">
           {activeTab === 'overview' && (
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-              <div className="xl:col-span-2"><MainChart series={result.series} benchmark={benchmark} withdrawal={withdrawal} withdrawalResult={withdrawalResult} /></div>
-              <div><CostSummary costs={result.costs} metrics={result.metrics} benchmark={benchmark} btcUsd={btcUsd} /></div>
+            <div className="space-y-8">
+              <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                <div className="xl:col-span-2"><MainChart series={result.series} benchmark={benchmark} withdrawal={withdrawal} withdrawalResult={withdrawalResult} /></div>
+                <div><CostSummary costs={result.costs} metrics={result.metrics} benchmark={benchmark} btcUsd={btcUsd} /></div>
+              </div>
             </div>
           )}
           {activeTab === 'price' && <PriceRangeChart series={result.series} />}
