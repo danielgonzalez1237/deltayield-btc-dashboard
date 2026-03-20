@@ -98,9 +98,17 @@ export function runBacktest(data, config) {
   const swapFee = feeTier === '005' ? SWAP_FEE_005 : SWAP_FEE_030;
   const apyKey = feeTier === '005' ? 'apy_005' : 'apy_030';
   const gasKey = feeTier === '005' ? 'gas_arb' : 'gas_eth';
-  // Cooldown in actual days: 0 => 0h, 1 => 24h (but spec says 0h/48h/72h/96h)
-  // cooldownDays: 0 => 0 days, 1 => 1 day, 2 => 2 days (48h), etc.
-  const cooldownLength = cooldownDays; // number of days to stay in cooldown
+  const cooldownLength = cooldownDays;
+
+  // ─── CRITICAL: Truncate data at last day with complete ethbtc data ───
+  // Without ethbtc, the short P&L calculation uses eu=0 (null*number=0 in JS)
+  // which creates a fictitious massive short profit. We MUST NOT run the
+  // backtest past the last day with real ethbtc data.
+  let lastEthbtcIdx = data.length - 1;
+  while (lastEthbtcIdx > 0 && data[lastEthbtcIdx].ethbtc == null) {
+    lastEthbtcIdx--;
+  }
+  const truncatedData = data.slice(0, lastEthbtcIdx + 1);
 
   // ─── State ──────────────────────────────────────────────
   let lpBtc = START_BTC;    // BTC in LP
@@ -242,6 +250,23 @@ export function runBacktest(data, config) {
   function doClose(d) {
     const eb = d.ethbtc;
     const bu = getBtcUsd(d);
+
+    // SAFETY: If ethbtc is null/0, we cannot compute short P&L or IL.
+    // This should not happen with truncated data, but guard against it.
+    if (!eb || eb <= 0) {
+      // Just consolidate LP + existing scBtc (no short close, no IL)
+      const total = lpBtc + scBtc;
+      lpBtc = total;
+      scBtc = 0;
+      rangeCenter = null;
+      shortOpen = false;
+      shortQtyEth = 0;
+      shortEntryEthUsd = 0;
+      scUsd = 0;
+      scInitUsd = 0;
+      return;
+    }
+
     const eu = eb * bu;
 
     // IL on LP
@@ -308,9 +333,9 @@ export function runBacktest(data, config) {
     return Math.abs(pnl) / scInitUsd >= marginThreshold;
   }
 
-  // ─── Main Loop ─────────────────────────────────────────
-  for (let i = 0; i < data.length; i++) {
-    const d = data[i];
+  // ─── Main Loop (uses truncatedData — stops at last valid ethbtc) ───
+  for (let i = 0; i < truncatedData.length; i++) {
+    const d = truncatedData[i];
     const date = d.date;
     const ethbtc = d.ethbtc;
     const apy = d[apyKey];
@@ -536,11 +561,11 @@ export function runBacktest(data, config) {
     });
   }
 
-  // ─── Close final open position ─────────────────────────
+  // ─── Close final open position (use last valid day, NOT null tail) ───
   if (currentPosition) {
-    const lastData = data[data.length - 1];
-    currentPosition.exitDate = lastData.date;
-    currentPosition.exitPrice = lastData.ethbtc || currentPosition.entryPrice;
+    const lastValid = truncatedData[truncatedData.length - 1];
+    currentPosition.exitDate = lastValid.date;
+    currentPosition.exitPrice = lastValid.ethbtc || currentPosition.entryPrice;
     currentPosition.exitBtc = lpBtc + scBtc;
     positions.push(currentPosition);
   }
