@@ -823,16 +823,31 @@ export function runBacktest(data, config) {
   const activeDays = series.filter(s => s.on).length;
   const years = totalDays / 365;
   const finalBtc = lpBtc + scBtc;
-  const netGain = finalBtc - START_BTC;
+  const trueNet = finalBtc - START_BTC;
+  const linearSum = totalFees + totalFundingIncome + totalShortPnl - totalIL - totalGas - totalSlippage - totalSwapFees - totalPerpFees;
   const cagr = years > 0 ? (Math.pow(finalBtc / START_BTC, 1 / years) - 1) * 100 : 0;
   const cagrDdRatio = maxDD !== 0 ? cagr / Math.abs(maxDD * 100) : Infinity;
+
+  // R3: Diagnostic log for debugging discrepancies
+  if (typeof window !== 'undefined') {
+    console.log('[DeltaYield Engine]', {
+      finalBtc: parseFloat(finalBtc.toFixed(6)),
+      cagr: parseFloat(cagr.toFixed(2)),
+      maxDD: parseFloat((maxDD * 100).toFixed(4)),
+      marginStops: marginStopCount,
+      trueNet: parseFloat(trueNet.toFixed(6)),
+      linearSum: parseFloat(linearSum.toFixed(6)),
+      compoundEffect: parseFloat((trueNet - linearSum).toFixed(6)),
+      config: { leverage, marginThreshold, cooldownDays, rebalanceDelay },
+    });
+  }
 
   return {
     series,
     positions,
     metrics: {
       finalBtc: parseFloat(finalBtc.toFixed(6)),
-      netGain: parseFloat(netGain.toFixed(6)),
+      netGain: parseFloat(trueNet.toFixed(6)),
       cagr: parseFloat(cagr.toFixed(2)),
       maxDD: parseFloat((maxDD * 100).toFixed(4)),
       cagrDdRatio: parseFloat(cagrDdRatio.toFixed(2)),
@@ -862,7 +877,10 @@ export function runBacktest(data, config) {
       slippage: parseFloat(totalSlippage.toFixed(6)),
       swapFees: parseFloat(totalSwapFees.toFixed(6)),
       perpFees: parseFloat(totalPerpFees.toFixed(6)),
-      net: parseFloat((totalFees + totalFundingIncome + totalShortPnl - totalIL - totalGas - totalSlippage - totalSwapFees - totalPerpFees).toFixed(6)),
+      // C2: net = true delta (finalBtc - START_BTC), NOT linear sum
+      net: parseFloat(trueNet.toFixed(6)),
+      linearSum: parseFloat(linearSum.toFixed(6)),
+      compoundEffect: parseFloat((trueNet - linearSum).toFixed(6)),
     },
     config: {
       feeTier, timing, hedge, offMode, gasOverride, slippage, rebalanceDelay,

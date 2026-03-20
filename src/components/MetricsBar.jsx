@@ -17,7 +17,7 @@ function Stat({ label, value, unit, color, highlight }) {
 export default function MetricsBar({ metrics, costs, benchmark, btcUsd }) {
   const { finalBtc, cagr, maxDD, cagrDdRatio, rebalanceCount, activeDays, years, maxHedgeExposure,
     marginStops, cooldownPct } = metrics;
-  const netGain = costs.net;
+  const netGain = metrics.netGain != null ? metrics.netGain : (metrics.finalBtc - 1.0);
   const isUsd = benchmark === 'usd';
   const mul = isUsd ? btcUsd : 1;
   const unit = isUsd ? 'USD' : 'BTC';

@@ -11,15 +11,19 @@ export default function CostSummary({ costs, metrics, benchmark, btcUsd }) {
   };
 
   // Build rows — decomposed P&L with funding + short P&L separate
+  // Engine reports cost magnitudes as positive values; we negate for display.
+  const compoundEffect = costs.compoundEffect || 0;
   const allRows = [
     { label: 'Pool Fees', btc: fees },
     { label: 'Funding Income', btc: fundingIncome || 0 },
     { label: 'Short P&L', btc: shortPnl || 0 },
-    { label: 'Impermanent Loss', btc: typeof il === 'number' ? -Math.abs(il) : 0 },
-    { label: 'Gas Costs', btc: typeof gas === 'number' ? -Math.abs(gas) : 0 },
-    { label: 'Slippage', btc: typeof slippage === 'number' ? -Math.abs(slippage) : 0 },
-    { label: 'Swap Fees', btc: typeof swapFees === 'number' ? -Math.abs(swapFees) : 0 },
-    { label: 'Perp Fees', btc: typeof perpFees === 'number' ? -Math.abs(perpFees) : 0 },
+    { label: 'Impermanent Loss', btc: -(Math.abs(il || 0)) },
+    { label: 'Gas Costs', btc: -(Math.abs(gas || 0)) },
+    { label: 'Slippage', btc: -(Math.abs(slippage || 0)) },
+    { label: 'Swap Fees', btc: -(Math.abs(swapFees || 0)) },
+    { label: 'Perp Fees', btc: -(Math.abs(perpFees || 0)) },
+    // Compound effect: difference between true net (finalBtc - 1) and linear sum of components
+    ...(Math.abs(compoundEffect) > 0.000001 ? [{ label: 'Compound Effect', btc: compoundEffect }] : []),
   ];
 
   const rows = allRows.filter(r => Math.abs(r.btc) > 0.000001);

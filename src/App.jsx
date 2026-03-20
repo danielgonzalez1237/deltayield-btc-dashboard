@@ -31,7 +31,7 @@ export default function App() {
   // V4 Hedge Engine controls — defaults from Recommended preset
   const [leverage, setLeverage] = useState(4.0);
   const [marginThreshold, setMarginThreshold] = useState(0.30);
-  const [cooldownDays, setCooldownDays] = useState(2);
+  const [cooldownDays, setCooldownDays] = useState(3); // Match Recommended preset
   const [exchange, setExchange] = useState('hl');
 
   // V4.5 Mitigant controls — defaults from Recommended preset
@@ -115,6 +115,7 @@ export default function App() {
 
   const btcUsd = result?.series?.[result.series.length - 1]?.btcUsd || 85000;
   const totalDays = result?.series?.length || 0;
+  const lastDataDate = data?.[data.length - 1]?.date || '—';
 
   if (loading) {
     return (
@@ -245,7 +246,7 @@ export default function App() {
       {/* Footer */}
       <footer className="mt-16 py-6 border-t border-[#1a1a2e] flex items-center justify-between text-xs text-[#555570]">
         <span>DeltaYield V4.5 — Zero synthetic data — Daily BTC/USD — {benchmark === 'usd' ? 'USD Mode' : 'BTC Benchmark'}</span>
-        <span>The Graph + Binance + Hyperliquid — Real daily prices</span>
+        <span>Real data through {lastDataDate} — The Graph + Binance + Hyperliquid</span>
       </footer>
     </div>
   );
