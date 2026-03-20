@@ -1,14 +1,15 @@
 import { useState } from 'react';
 
-function PillToggle({ label, value, onChange, options }) {
+function PillToggle({ label, value, onChange, options, disabled }) {
   return (
     <div className="space-y-3">
       <span className="text-[11px] text-[#555570] font-semibold uppercase tracking-[0.12em] block">{label}</span>
-      <div className="inline-flex bg-[#0a0a14] border border-[#1a1a2e] rounded-xl p-1 gap-1">
+      <div className={`inline-flex bg-[#0a0a14] border border-[#1a1a2e] rounded-xl p-1 gap-1 ${disabled ? 'opacity-40 pointer-events-none' : ''}`}>
         {options.map(opt => (
           <button
             key={String(opt.value)}
             onClick={() => onChange(opt.value)}
+            disabled={disabled}
             className={`px-4 py-2 text-[12px] font-semibold rounded-lg transition-all duration-200 whitespace-nowrap ${
               value === opt.value
                 ? 'bg-[#f7931a] text-black shadow-[0_2px_12px_rgba(247,147,26,0.3)]'
@@ -33,8 +34,13 @@ export default function ConfigPanel({
   gasOverride, setGasOverride,
   slippage, setSlippage,
   rebalanceDelay, setRebalanceDelay,
+  leverage, setLeverage,
+  marginThreshold, setMarginThreshold,
+  cooldownDays, setCooldownDays,
+  exchange, setExchange,
 }) {
   const [gasOpen, setGasOpen] = useState(false);
+  const [hedgeOpen, setHedgeOpen] = useState(false);
 
   return (
     <div className="bg-[#0d0d17] border border-[#1a1a2e] rounded-3xl p-8 mb-10">
@@ -52,7 +58,72 @@ export default function ConfigPanel({
           options={[{ value: 'btc', label: 'BTC' }, { value: 'usd', label: 'USD' }]} />
       </div>
 
-      {/* Row 2: Withdrawal + Advanced */}
+      {/* Row 2: Hedge Engine (collapsible) */}
+      {hedge && (
+        <div className="mt-8 pt-8 border-t border-[#1a1a2e]/50">
+          <button onClick={() => setHedgeOpen(!hedgeOpen)}
+            className="flex items-center gap-3 mb-6 group">
+            <span className="text-[11px] text-[#555570] font-semibold uppercase tracking-[0.12em] group-hover:text-[#f0f0f8] transition-colors">
+              Hedge Engine
+            </span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+              className={`text-[#555570] transition-transform duration-200 ${hedgeOpen ? 'rotate-180' : ''}`}>
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+            <span className="text-[10px] text-[#8888a8] bg-[#0a0a14] border border-[#1a1a2e] rounded-lg px-3 py-1 font-mono">
+              {leverage}x / {(marginThreshold * 100).toFixed(0)}% / {cooldownDays * 24}h
+            </span>
+          </button>
+
+          {hedgeOpen && (
+            <div className="flex flex-wrap gap-8 items-end">
+              <PillToggle label="Leverage" value={leverage} onChange={setLeverage}
+                options={[
+                  { value: 1.0, label: '1x' },
+                  { value: 1.5, label: '1.5x' },
+                  { value: 2.0, label: '2x' },
+                  { value: 2.5, label: '2.5x' },
+                  { value: 3.0, label: '3x' },
+                  { value: 3.5, label: '3.5x' },
+                  { value: 4.0, label: '4x' },
+                  { value: 5.0, label: '5x' },
+                ]} />
+
+              <div className="w-px h-12 bg-[#1a1a2e] hidden lg:block self-center" />
+
+              <PillToggle label="Margin Stop" value={marginThreshold} onChange={setMarginThreshold}
+                options={[
+                  { value: 0.05, label: '5%' },
+                  { value: 0.10, label: '10%' },
+                  { value: 0.15, label: '15%' },
+                  { value: 0.20, label: '20%' },
+                  { value: 0.25, label: '25%' },
+                  { value: 0.30, label: '30%' },
+                ]} />
+
+              <div className="w-px h-12 bg-[#1a1a2e] hidden lg:block self-center" />
+
+              <PillToggle label="Cooldown" value={cooldownDays} onChange={setCooldownDays}
+                options={[
+                  { value: 0, label: '0h' },
+                  { value: 2, label: '48h' },
+                  { value: 3, label: '72h' },
+                  { value: 4, label: '96h' },
+                ]} />
+
+              <div className="w-px h-12 bg-[#1a1a2e] hidden lg:block self-center" />
+
+              <PillToggle label="Exchange" value={exchange} onChange={setExchange}
+                options={[
+                  { value: 'hl', label: 'Hyperliquid' },
+                  { value: 'binance', label: 'Binance' },
+                ]} />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Row 3: Withdrawal + Advanced */}
       <div className="flex flex-wrap gap-8 items-end mt-8 pt-8 border-t border-[#1a1a2e]/50">
         <PillToggle label="Withdrawals" value={withdrawal} onChange={setWithdrawal}
           options={[
@@ -92,7 +163,7 @@ export default function ConfigPanel({
         </div>
       </div>
 
-      {/* Row 3: Rebalance Delay + Swap Fee */}
+      {/* Row 4: Rebalance Delay + Swap Fee */}
       <div className="flex flex-wrap gap-8 items-end mt-8 pt-8 border-t border-[#1a1a2e]/50">
         <PillToggle label="Rebalance Delay" value={rebalanceDelay} onChange={setRebalanceDelay}
           options={[
@@ -105,7 +176,6 @@ export default function ConfigPanel({
 
         <div className="w-px h-12 bg-[#1a1a2e] hidden lg:block self-center" />
 
-        {/* Swap Fee — functional toggle that also controls fee tier */}
         <PillToggle label="Swap Fee" value={feeTier} onChange={setFeeTier}
           options={[
             { value: '005', label: '0.05%' },

@@ -10,18 +10,23 @@ export default function CostSummary({ costs, metrics, benchmark, btcUsd }) {
     return Math.abs(v).toFixed(6);
   };
 
-  const rows = [
-    { label: 'Fees Earned', btc: fees, type: 'income' },
-    { label: 'Hedge P&L', btc: hedge, type: 'income' },
-    { label: 'Impermanent Loss', btc: -il, type: 'cost' },
-    { label: 'Gas Costs', btc: -gas, type: 'cost' },
-    { label: 'Slippage', btc: -slippage, type: 'cost' },
-    { label: 'Swap Fees', btc: -swapFees, type: 'cost' },
-    { label: 'Perp Fees', btc: -perpFees, type: 'cost' },
+  // Build rows — skip zero-value entries to keep it clean
+  const allRows = [
+    { label: 'Pool Fees', btc: fees },
+    { label: 'Hedge P&L', btc: hedge },
+    { label: 'Impermanent Loss', btc: typeof il === 'number' ? -Math.abs(il) : 0 },
+    { label: 'Gas Costs', btc: typeof gas === 'number' ? -Math.abs(gas) : 0 },
+    { label: 'Slippage', btc: typeof slippage === 'number' ? -Math.abs(slippage) : 0 },
+    { label: 'Swap Fees', btc: typeof swapFees === 'number' ? -Math.abs(swapFees) : 0 },
+    { label: 'Perp Fees', btc: typeof perpFees === 'number' ? -Math.abs(perpFees) : 0 },
   ];
+
+  const rows = allRows.filter(r => Math.abs(r.btc) > 0.000001);
 
   const daysOut = metrics.daysOutOfRange || 0;
   const feesMissed = metrics.feesMissed || 0;
+  const marginStops = metrics.marginStops || 0;
+  const cooldownDays = metrics.cooldownDays || 0;
 
   return (
     <div className="bg-[#0d0d17] border border-[#1a1a2e] rounded-3xl p-8 h-full flex flex-col">
@@ -55,19 +60,33 @@ export default function CostSummary({ costs, metrics, benchmark, btcUsd }) {
         })}
       </div>
 
-      {/* Delay metrics */}
-      {(daysOut > 0 || feesMissed > 0) && (
+      {/* Operational metrics */}
+      {(daysOut > 0 || feesMissed > 0 || marginStops > 0 || cooldownDays > 0) && (
         <div className="mt-4 pt-4 border-t border-[#1a1a2e]/50 space-y-2 px-4">
-          <div className="flex items-center justify-between">
-            <span className="text-[12px] text-[#8888a8]">Days Out of Range</span>
-            <span className="text-[12px] font-mono tabular-nums text-[#f7931a] font-semibold">{daysOut}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-[12px] text-[#8888a8]">Fees Lost to Delay</span>
-            <span className="text-[12px] font-mono tabular-nums text-[#ef4444] font-semibold">
-              -{fmt(feesMissed)}
-            </span>
-          </div>
+          {daysOut > 0 && (
+            <div className="flex items-center justify-between">
+              <span className="text-[12px] text-[#8888a8]">Days Out of Range</span>
+              <span className="text-[12px] font-mono tabular-nums text-[#f7931a] font-semibold">{daysOut}</span>
+            </div>
+          )}
+          {feesMissed > 0 && (
+            <div className="flex items-center justify-between">
+              <span className="text-[12px] text-[#8888a8]">Fees Lost to Delay</span>
+              <span className="text-[12px] font-mono tabular-nums text-[#ef4444] font-semibold">-{fmt(feesMissed)}</span>
+            </div>
+          )}
+          {marginStops > 0 && (
+            <div className="flex items-center justify-between">
+              <span className="text-[12px] text-[#8888a8]">Margin Stops</span>
+              <span className="text-[12px] font-mono tabular-nums text-[#ef4444] font-semibold">{marginStops}</span>
+            </div>
+          )}
+          {cooldownDays > 0 && (
+            <div className="flex items-center justify-between">
+              <span className="text-[12px] text-[#8888a8]">Days in Cooldown</span>
+              <span className="text-[12px] font-mono tabular-nums text-[#f7931a] font-semibold">{cooldownDays}</span>
+            </div>
+          )}
         </div>
       )}
 

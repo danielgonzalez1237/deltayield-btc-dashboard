@@ -10,12 +10,14 @@ import FundingChart from './components/FundingChart';
 import ScenarioTable from './components/ScenarioTable';
 import WithdrawalChart from './components/WithdrawalChart';
 import HybridChart from './components/HybridChart';
+import HedgeAnalysis from './components/HedgeAnalysis';
 
 export default function App() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Strategy controls
   const [feeTier, setFeeTier] = useState('005');
   const [timing, setTiming] = useState('always');
   const [hedge, setHedge] = useState(true);
@@ -24,7 +26,14 @@ export default function App() {
   const [withdrawal, setWithdrawal] = useState('none');
   const [gasOverride, setGasOverride] = useState(null);
   const [slippage, setSlippage] = useState(0.001);
-  const [rebalanceDelay, setRebalanceDelay] = useState(0);
+  const [rebalanceDelay, setRebalanceDelay] = useState(2); // 48h default per Addendum 4
+
+  // V4 Hedge Engine controls
+  const [leverage, setLeverage] = useState(3.0);           // 3x default
+  const [marginThreshold, setMarginThreshold] = useState(0.30); // 30% default
+  const [cooldownDays, setCooldownDays] = useState(2);     // 48h default
+  const [exchange, setExchange] = useState('hl');           // Hyperliquid default
+
   const [activeTab, setActiveTab] = useState('overview');
 
   useEffect(() => {
@@ -34,10 +43,16 @@ export default function App() {
       .catch(e => { setError(e.message); setLoading(false); });
   }, []);
 
+  const config = useMemo(() => ({
+    feeTier, timing, hedge, offMode, gasOverride, slippage, rebalanceDelay,
+    leverage, marginThreshold, cooldownDays, exchange,
+  }), [feeTier, timing, hedge, offMode, gasOverride, slippage, rebalanceDelay,
+       leverage, marginThreshold, cooldownDays, exchange]);
+
   const result = useMemo(() => {
     if (!data) return null;
-    return runBacktest(data, { feeTier, timing, hedge, offMode, gasOverride, slippage, rebalanceDelay });
-  }, [data, feeTier, timing, hedge, offMode, gasOverride, slippage, rebalanceDelay]);
+    return runBacktest(data, config);
+  }, [data, config]);
 
   const withdrawalResult = useMemo(() => {
     if (!result || withdrawal === 'none') return null;
@@ -46,25 +61,26 @@ export default function App() {
 
   const allScenarios = useMemo(() => {
     if (!data) return [];
-    return runAllScenarios(data, gasOverride, slippage, rebalanceDelay);
-  }, [data, gasOverride, slippage, rebalanceDelay]);
+    return runAllScenarios(data, gasOverride, slippage, rebalanceDelay, leverage, marginThreshold, cooldownDays, exchange);
+  }, [data, gasOverride, slippage, rebalanceDelay, leverage, marginThreshold, cooldownDays, exchange]);
 
   const hybridResult = useMemo(() => {
     if (!data) return null;
-    return runHybridBacktest(data, { timing, offMode, gasOverride, slippage, rebalanceDelay });
-  }, [data, timing, offMode, gasOverride, slippage, rebalanceDelay]);
+    return runHybridBacktest(data, { timing, offMode, gasOverride, slippage, rebalanceDelay, leverage, marginThreshold, cooldownDays, exchange });
+  }, [data, timing, offMode, gasOverride, slippage, rebalanceDelay, leverage, marginThreshold, cooldownDays, exchange]);
 
   const arbOnlyResult = useMemo(() => {
     if (!data) return null;
-    return runBacktest(data, { feeTier: '005', timing, hedge: true, offMode, gasOverride, slippage, rebalanceDelay });
-  }, [data, timing, offMode, gasOverride, slippage, rebalanceDelay]);
+    return runBacktest(data, { ...config, feeTier: '005', hedge: true });
+  }, [data, config]);
 
   const ethOnlyResult = useMemo(() => {
     if (!data) return null;
-    return runBacktest(data, { feeTier: '030', timing, hedge: true, offMode, gasOverride, slippage, rebalanceDelay });
-  }, [data, timing, offMode, gasOverride, slippage, rebalanceDelay]);
+    return runBacktest(data, { ...config, feeTier: '030', hedge: true });
+  }, [data, config]);
 
   const btcUsd = result?.series?.[result.series.length - 1]?.btcUsd || 85000;
+  const totalDays = result?.series?.length || 0;
 
   if (loading) {
     return (
@@ -90,6 +106,7 @@ export default function App() {
     { id: 'price', label: 'Price & Ranges' },
     { id: 'positions', label: 'Positions' },
     { id: 'funding', label: 'Funding & APY' },
+    ...(hedge ? [{ id: 'hedge', label: 'Hedge Analysis' }] : []),
     { id: 'scenarios', label: 'Scenarios' },
     { id: 'withdrawal', label: 'Withdrawals' },
     { id: 'hybrid', label: 'Hybrid 50/50' },
@@ -104,17 +121,19 @@ export default function App() {
             D
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-[#f0f0f8] tracking-tight">DeltaYield V3</h1>
-            <p className="text-sm text-[#555570] mt-1">WBTC/WETH Concentrated Liquidity — Real Data Only</p>
+            <h1 className="text-2xl font-bold text-[#f0f0f8] tracking-tight">DeltaYield V4</h1>
+            <p className="text-sm text-[#555570] mt-1">
+              WBTC/WETH CLP — {hedge ? `${leverage}x / ${(marginThreshold*100).toFixed(0)}% margin stop` : 'Unhedged'} — Real Data Only
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-4">
           <span className="text-xs text-[#555570] bg-[#0a0a14] border border-[#1a1a2e] rounded-xl px-4 py-2.5 font-medium">
-            {benchmark === 'usd' ? `1 BTC = $${btcUsd.toLocaleString()}` : '1,893 days of real data'}
+            {benchmark === 'usd' ? `1 BTC = $${btcUsd.toLocaleString()}` : `${totalDays.toLocaleString()} days of real data`}
           </span>
           <span className="flex items-center gap-2 text-xs text-[#555570]">
             <span className="inline-block w-2 h-2 rounded-full bg-[#22c55e] animate-pulse" />
-            Live engine
+            V4 Engine
           </span>
         </div>
       </header>
@@ -130,6 +149,10 @@ export default function App() {
         gasOverride={gasOverride} setGasOverride={setGasOverride}
         slippage={slippage} setSlippage={setSlippage}
         rebalanceDelay={rebalanceDelay} setRebalanceDelay={setRebalanceDelay}
+        leverage={leverage} setLeverage={setLeverage}
+        marginThreshold={marginThreshold} setMarginThreshold={setMarginThreshold}
+        cooldownDays={cooldownDays} setCooldownDays={setCooldownDays}
+        exchange={exchange} setExchange={setExchange}
       />
 
       {/* Metrics */}
@@ -163,6 +186,9 @@ export default function App() {
           {activeTab === 'price' && <PriceRangeChart series={result.series} />}
           {activeTab === 'positions' && <PositionCards positions={result.positions} benchmark={benchmark} btcUsd={btcUsd} />}
           {activeTab === 'funding' && <FundingChart series={result.series} />}
+          {activeTab === 'hedge' && hedge && (
+            <HedgeAnalysis series={result.series} metrics={result.metrics} costs={result.costs} benchmark={benchmark} />
+          )}
           {activeTab === 'scenarios' && <ScenarioTable scenarios={allScenarios} benchmark={benchmark} btcUsd={btcUsd} />}
           {activeTab === 'withdrawal' && <WithdrawalChart series={result.series} benchmark={benchmark} />}
           {activeTab === 'hybrid' && hybridResult && arbOnlyResult && ethOnlyResult && (
@@ -173,8 +199,8 @@ export default function App() {
 
       {/* Footer */}
       <footer className="mt-16 py-6 border-t border-[#1a1a2e] flex items-center justify-between text-xs text-[#555570]">
-        <span>DeltaYield V3 — Zero synthetic data — {benchmark === 'usd' ? 'USD Mode' : 'BTC Benchmark'}</span>
-        <span>The Graph + Binance + Hyperliquid — 01/01/2021 to 08/03/2026</span>
+        <span>DeltaYield V4 — Zero synthetic data — Daily BTC/USD — {benchmark === 'usd' ? 'USD Mode' : 'BTC Benchmark'}</span>
+        <span>The Graph + Binance + Hyperliquid — Real daily prices</span>
       </footer>
     </div>
   );
