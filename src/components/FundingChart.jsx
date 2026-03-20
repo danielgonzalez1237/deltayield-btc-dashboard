@@ -1,5 +1,5 @@
 import {
-  ResponsiveContainer, ComposedChart, Bar, Line, XAxis, YAxis,
+  ResponsiveContainer, ComposedChart, Area, Line, XAxis, YAxis,
   CartesianGrid, Tooltip, ReferenceLine,
 } from 'recharts';
 import { useMemo, useState } from 'react';
@@ -10,7 +10,7 @@ function ChartTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
   return (
     <div className="bg-[#12121e] border border-[#252540] rounded-2xl px-5 py-4 text-xs shadow-2xl shadow-black/50">
-      <div className="text-[#555570] mb-3 text-[10px] font-semibold uppercase tracking-wider">{label}</div>
+      <div className="text-[#555570] mb-3 text-[13px] font-semibold uppercase tracking-wider">{label}</div>
       {payload.filter(p => p.value != null).map((p, i) => (
         <div key={i} className="flex justify-between gap-8 py-1">
           <span className="flex items-center gap-2">
@@ -27,7 +27,7 @@ function ChartTooltip({ active, payload, label }) {
 function StatPill({ label, value, color }) {
   return (
     <div className="bg-[#0d0d17] border border-[#1a1a2e] rounded-2xl px-6 py-5 flex-1 min-w-[140px]">
-      <div className="text-[11px] text-[#555570] uppercase tracking-wider font-semibold mb-2">{label}</div>
+      <div className="text-[13px] text-[#555570] uppercase tracking-wider font-semibold mb-2">{label}</div>
       <div className={`text-xl font-mono font-bold tabular-nums ${color}`}>{value}</div>
     </div>
   );
@@ -87,18 +87,18 @@ export default function FundingChart({ series }) {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-base font-bold text-[#f0f0f8]">Funding Rate</h2>
-            <p className="text-[11px] text-[#555570] mt-1">Annualized % — Weekly avg (Binance pre-2023, Hyperliquid post-2023)</p>
+            <p className="text-[13px] text-[#555570] mt-1">Annualized % — Weekly avg (Binance pre-2023, Hyperliquid post-2023)</p>
           </div>
           <TimeRangeSelector value={fundingRange} onChange={setFundingRange} />
         </div>
-        <ResponsiveContainer width="100%" height={300}>
+        <ResponsiveContainer width="100%" height={450}>
           <ComposedChart data={fundingData} margin={{ top: 5, right: 10, left: -5, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.025)" />
-            <XAxis dataKey="dateLabel" tick={{ fontSize: 10, fill: '#555570' }} axisLine={{ stroke: '#1a1a2e' }} tickLine={false} interval={Math.floor(fundingData.length / 7)} />
-            <YAxis tick={{ fontSize: 10, fill: '#555570' }} axisLine={false} tickLine={false} />
+            <XAxis dataKey="dateLabel" tick={{ fontSize: 12, fill: '#555570' }} axisLine={{ stroke: '#1a1a2e' }} tickLine={false} interval={Math.floor(fundingData.length / 7)} />
+            <YAxis tick={{ fontSize: 12, fill: '#555570' }} axisLine={false} tickLine={false} />
             <Tooltip content={<ChartTooltip />} />
             <ReferenceLine y={0} stroke="#8888a8" strokeOpacity={0.15} />
-            <Bar dataKey="funding" name="Funding Rate" fill="#a855f7" fillOpacity={0.5} radius={[2, 2, 0, 0]} />
+            <Area type="monotone" dataKey="funding" name="Funding Rate" stroke="#a855f7" fill="rgba(168,85,247,0.25)" strokeWidth={2.5} dot={false} />
           </ComposedChart>
         </ResponsiveContainer>
       </div>
@@ -108,23 +108,23 @@ export default function FundingChart({ series }) {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-base font-bold text-[#f0f0f8]">Pool APY</h2>
-            <p className="text-[11px] text-[#555570] mt-1">Weekly average — adjusted by 0.94x multiplier in backtest</p>
+            <p className="text-[13px] text-[#555570] mt-1">Weekly average — adjusted by 0.94x multiplier in backtest</p>
           </div>
           <TimeRangeSelector value={apyRange} onChange={setApyRange} />
         </div>
-        <ResponsiveContainer width="100%" height={300}>
+        <ResponsiveContainer width="100%" height={450}>
           <ComposedChart data={apyData} margin={{ top: 5, right: 10, left: -5, bottom: 0 }}>
             <defs>
               <linearGradient id="apyGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.1} />
+                <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.25} />
                 <stop offset="100%" stopColor="#3b82f6" stopOpacity={0} />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.025)" />
-            <XAxis dataKey="dateLabel" tick={{ fontSize: 10, fill: '#555570' }} axisLine={{ stroke: '#1a1a2e' }} tickLine={false} interval={Math.floor(apyData.length / 7)} />
-            <YAxis tick={{ fontSize: 10, fill: '#555570' }} axisLine={false} tickLine={false} />
+            <XAxis dataKey="dateLabel" tick={{ fontSize: 12, fill: '#555570' }} axisLine={{ stroke: '#1a1a2e' }} tickLine={false} interval={Math.floor(apyData.length / 7)} />
+            <YAxis tick={{ fontSize: 12, fill: '#555570' }} axisLine={false} tickLine={false} />
             <Tooltip content={<ChartTooltip />} />
-            <Line type="monotone" dataKey="apy" name="Pool APY" stroke="#3b82f6" strokeWidth={1.5} dot={false} fill="url(#apyGrad)" />
+            <Area type="monotone" dataKey="apy" name="Pool APY" stroke="#3b82f6" strokeWidth={2.5} dot={false} fill="url(#apyGrad)" />
           </ComposedChart>
         </ResponsiveContainer>
       </div>

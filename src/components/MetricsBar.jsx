@@ -3,12 +3,12 @@ function Stat({ label, value, unit, color, highlight }) {
     <div className={`bg-[#0d0d17] border rounded-2xl px-6 py-5 min-w-[150px] flex-1 transition-all ${
       highlight ? 'border-[#f7931a]/20 shadow-[0_0_24px_rgba(247,147,26,0.04)]' : 'border-[#1a1a2e]'
     }`}>
-      <div className="text-[11px] text-[#555570] font-semibold uppercase tracking-[0.1em] mb-2.5">{label}</div>
+      <div className="text-[13px] text-[#555570] font-semibold uppercase tracking-[0.1em] mb-2.5">{label}</div>
       <div className="flex items-baseline gap-1.5">
         <span className={`text-2xl font-bold font-mono tabular-nums tracking-tight ${color || 'text-[#f0f0f8]'}`}>
           {value}
         </span>
-        {unit && <span className="text-[11px] text-[#555570] font-medium">{unit}</span>}
+        {unit && <span className="text-[13px] text-[#555570] font-medium">{unit}</span>}
       </div>
     </div>
   );

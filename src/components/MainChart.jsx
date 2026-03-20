@@ -13,7 +13,7 @@ function ChartTooltip({ active, payload, label, benchmark }) {
   const isUsd = benchmark === 'usd';
   return (
     <div className="bg-[#12121e] border border-[#252540] rounded-2xl px-5 py-4 text-xs shadow-2xl shadow-black/50">
-      <div className="text-[#8888a8] mb-3 text-[10px] font-semibold uppercase tracking-wider">{label}</div>
+      <div className="text-[#8888a8] mb-3 text-[13px] font-semibold uppercase tracking-wider">{label}</div>
       {payload.map((p, i) => (
         <div key={i} className="flex justify-between gap-8 py-1">
           <span className="flex items-center gap-2">
@@ -102,14 +102,14 @@ export default function MainChart({ series, benchmark, withdrawal, withdrawalRes
               {isUsd ? 'Portfolio Value (USD)' : 'BTC Balance'}
               {hasWithdrawal && <span className="text-[#a855f7] ml-2 text-sm font-medium">+ {FREQ_LABELS[withdrawal]} Withdrawals</span>}
             </h2>
-            <p className="text-[11px] text-[#555570] mt-1">
+            <p className="text-[13px] text-[#555570] mt-1">
               {hasWithdrawal
                 ? `Compound (orange) vs ${FREQ_LABELS[withdrawal]} profit extraction (purple)`
                 : (isUsd ? 'vs $1 BTC HODL in USD' : 'vs 1 BTC HODL benchmark')}
             </p>
           </div>
           <div className="flex items-center gap-5">
-            <div className="flex items-center gap-5 text-[11px] mr-4">
+            <div className="flex items-center gap-5 text-[13px] mr-4">
               <span className="flex items-center gap-2">
                 <span className="w-4 h-0.5 bg-[#f7931a] rounded" />
                 <span className="text-[#8888a8]">{hasWithdrawal ? 'Compound' : 'Strategy'}</span>
@@ -130,21 +130,21 @@ export default function MainChart({ series, benchmark, withdrawal, withdrawalRes
             <TimeRangeSelector value={timeRange} onChange={setTimeRange} />
           </div>
         </div>
-        <ResponsiveContainer width="100%" height={380}>
+        <ResponsiveContainer width="100%" height={450}>
           <ComposedChart data={chartData} margin={{ top: 5, right: 10, left: isUsd ? 10 : -5, bottom: 0 }}>
             <defs>
               <linearGradient id="btcGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#f7931a" stopOpacity={0.12} />
+                <stop offset="0%" stopColor="#f7931a" stopOpacity={0.2} />
                 <stop offset="100%" stopColor="#f7931a" stopOpacity={0.0} />
               </linearGradient>
               <linearGradient id="withdrawalGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#a855f7" stopOpacity={0.08} />
+                <stop offset="0%" stopColor="#a855f7" stopOpacity={0.2} />
                 <stop offset="100%" stopColor="#a855f7" stopOpacity={0.0} />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.025)" />
-            <XAxis dataKey="dateLabel" tick={{ fontSize: 10, fill: '#555570' }} axisLine={{ stroke: '#1a1a2e' }} tickLine={false} interval={Math.floor(chartData.length / 7)} />
-            <YAxis domain={[yMin, yMax]} tick={{ fontSize: 10, fill: '#555570' }} axisLine={false} tickLine={false}
+            <XAxis dataKey="dateLabel" tick={{ fontSize: 12, fill: '#555570' }} axisLine={{ stroke: '#1a1a2e' }} tickLine={false} interval={Math.floor(chartData.length / 7)} />
+            <YAxis domain={[yMin, yMax]} tick={{ fontSize: 12, fill: '#555570' }} axisLine={false} tickLine={false}
               tickFormatter={v => isUsd ? `$${(v / 1000).toFixed(0)}k` : v.toFixed(2)} />
             <Tooltip content={<ChartTooltip benchmark={benchmark} />} />
             <Area type="monotone" dataKey="btc" name={hasWithdrawal ? 'Compound' : 'Strategy'} stroke="#f7931a" fill="url(#btcGradient)" strokeWidth={2.5} dot={false} animationDuration={400} />
@@ -158,17 +158,17 @@ export default function MainChart({ series, benchmark, withdrawal, withdrawalRes
       {hasWithdrawal && withdrawalResult.withdrawals?.length > 0 && (
         <div className="bg-[#0d0d17] border border-[#1a1a2e] rounded-3xl p-8">
           <h3 className="text-sm font-bold text-[#f0f0f8] mb-1">Extraction History</h3>
-          <p className="text-[11px] text-[#555570] mb-5">
+          <p className="text-[13px] text-[#555570] mb-5">
             {withdrawalResult.withdrawals.length} extractions — {FREQ_LABELS[withdrawal]} profit withdrawal
           </p>
           <div className="overflow-x-auto">
             <table className="w-full text-[12px]">
               <thead>
                 <tr className="border-b border-[#1a1a2e]">
-                  <th className="text-left py-3 px-3 text-[#555570] font-semibold uppercase tracking-wider text-[10px]">#</th>
-                  <th className="text-left py-3 px-3 text-[#555570] font-semibold uppercase tracking-wider text-[10px]">Date</th>
-                  <th className="text-right py-3 px-3 text-[#555570] font-semibold uppercase tracking-wider text-[10px]">Extracted</th>
-                  <th className="text-right py-3 px-3 text-[#555570] font-semibold uppercase tracking-wider text-[10px]">Total Withdrawn</th>
+                  <th className="text-left py-3 px-3 text-[#555570] font-semibold uppercase tracking-wider text-[13px]">#</th>
+                  <th className="text-left py-3 px-3 text-[#555570] font-semibold uppercase tracking-wider text-[13px]">Date</th>
+                  <th className="text-right py-3 px-3 text-[#555570] font-semibold uppercase tracking-wider text-[13px]">Extracted</th>
+                  <th className="text-right py-3 px-3 text-[#555570] font-semibold uppercase tracking-wider text-[13px]">Total Withdrawn</th>
                 </tr>
               </thead>
               <tbody>

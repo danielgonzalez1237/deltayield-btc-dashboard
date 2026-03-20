@@ -31,7 +31,7 @@ export default function CostSummary({ costs, metrics, benchmark, btcUsd }) {
   return (
     <div className="bg-[#0d0d17] border border-[#1a1a2e] rounded-3xl p-8 h-full flex flex-col">
       <h2 className="text-base font-bold text-[#f0f0f8] mb-1.5">P&L Breakdown</h2>
-      <p className="text-[11px] text-[#555570] mb-6">All values in {unit}</p>
+      <p className="text-[13px] text-[#555570] mb-6">All values in {unit}</p>
 
       <div className="flex-1 space-y-1.5">
         {rows.map(row => {
@@ -41,12 +41,12 @@ export default function CostSummary({ costs, metrics, benchmark, btcUsd }) {
           return (
             <div key={row.label} className="group py-2.5 px-4 rounded-xl hover:bg-[rgba(255,255,255,0.02)] transition-colors">
               <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[12px] text-[#8888a8] group-hover:text-[#f0f0f8] transition-colors">{row.label}</span>
+                <span className="text-[13px] text-[#8888a8] group-hover:text-[#f0f0f8] transition-colors">{row.label}</span>
                 <div className="flex items-center gap-4">
-                  <span className={`text-[12px] font-mono tabular-nums font-semibold ${isPositive ? 'text-[#22c55e]' : 'text-[#ef4444]'}`}>
+                  <span className={`text-[13px] font-mono tabular-nums font-semibold ${isPositive ? 'text-[#22c55e]' : 'text-[#ef4444]'}`}>
                     {isPositive ? '+' : '-'}{fmt(row.btc)}
                   </span>
-                  <span className={`text-[11px] font-mono tabular-nums w-[55px] text-right ${isPositive ? 'text-[#22c55e]' : 'text-[#ef4444]'} opacity-50`}>
+                  <span className={`text-[13px] font-mono tabular-nums w-[55px] text-right ${isPositive ? 'text-[#22c55e]' : 'text-[#ef4444]'} opacity-50`}>
                     {isPositive ? '+' : ''}{pct.toFixed(1)}%
                   </span>
                 </div>
@@ -65,26 +65,26 @@ export default function CostSummary({ costs, metrics, benchmark, btcUsd }) {
         <div className="mt-4 pt-4 border-t border-[#1a1a2e]/50 space-y-2 px-4">
           {daysOut > 0 && (
             <div className="flex items-center justify-between">
-              <span className="text-[12px] text-[#8888a8]">Days Out of Range</span>
-              <span className="text-[12px] font-mono tabular-nums text-[#f7931a] font-semibold">{daysOut}</span>
+              <span className="text-[13px] text-[#8888a8]">Days Out of Range</span>
+              <span className="text-[13px] font-mono tabular-nums text-[#f7931a] font-semibold">{daysOut}</span>
             </div>
           )}
           {feesMissed > 0 && (
             <div className="flex items-center justify-between">
-              <span className="text-[12px] text-[#8888a8]">Fees Lost to Delay</span>
-              <span className="text-[12px] font-mono tabular-nums text-[#ef4444] font-semibold">-{fmt(feesMissed)}</span>
+              <span className="text-[13px] text-[#8888a8]">Fees Lost to Delay</span>
+              <span className="text-[13px] font-mono tabular-nums text-[#ef4444] font-semibold">-{fmt(feesMissed)}</span>
             </div>
           )}
           {marginStops > 0 && (
             <div className="flex items-center justify-between">
-              <span className="text-[12px] text-[#8888a8]">Margin Stops</span>
-              <span className="text-[12px] font-mono tabular-nums text-[#ef4444] font-semibold">{marginStops}</span>
+              <span className="text-[13px] text-[#8888a8]">Margin Stops</span>
+              <span className="text-[13px] font-mono tabular-nums text-[#ef4444] font-semibold">{marginStops}</span>
             </div>
           )}
           {cooldownDays > 0 && (
             <div className="flex items-center justify-between">
-              <span className="text-[12px] text-[#8888a8]">Days in Cooldown</span>
-              <span className="text-[12px] font-mono tabular-nums text-[#f7931a] font-semibold">{cooldownDays}</span>
+              <span className="text-[13px] text-[#8888a8]">Days in Cooldown</span>
+              <span className="text-[13px] font-mono tabular-nums text-[#f7931a] font-semibold">{cooldownDays}</span>
             </div>
           )}
         </div>

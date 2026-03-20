@@ -10,12 +10,12 @@ export default function ScenarioTable({ scenarios, benchmark, btcUsd }) {
     <div className="bg-[#0d0d17] border border-[#1a1a2e] rounded-3xl p-8">
       <div className="mb-6">
         <h2 className="text-base font-bold text-[#f0f0f8]">Scenario Comparison</h2>
-        <p className="text-[11px] text-[#555570] mt-1">All 10 configurations ranked by CAGR (8 base + 2 hybrid)</p>
+        <p className="text-[13px] text-[#555570] mt-1">All 10 configurations ranked by CAGR (8 base + 2 hybrid)</p>
       </div>
       <div className="overflow-x-auto -mx-2">
-        <table className="w-full text-[12px] min-w-[900px]">
+        <table className="w-full text-[13px] min-w-[900px]">
           <thead>
-            <tr className="text-[#555570] text-[10px] uppercase tracking-[0.1em]">
+            <tr className="text-[#555570] text-[13px] uppercase tracking-[0.1em]">
               <th className="text-left py-3 px-3 font-bold">#</th>
               <th className="text-left py-3 px-3 font-bold">Scenario</th>
               <th className="text-right py-3 px-3 font-bold">Final {isUsd ? 'USD' : 'BTC'}</th>
@@ -39,9 +39,9 @@ export default function ScenarioTable({ scenarios, benchmark, btcUsd }) {
                   className={`border-t border-[#1a1a2e] transition-colors hover:bg-[rgba(255,255,255,0.02)] ${best ? 'bg-[rgba(247,147,26,0.03)]' : ''}`}>
                   <td className="py-4 px-3 font-mono text-[#555570]">
                     {best ? (
-                      <span className="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-[rgba(247,147,26,0.1)] text-[#f7931a] text-[11px] font-bold">1</span>
+                      <span className="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-[rgba(247,147,26,0.1)] text-[#f7931a] text-[13px] font-bold">1</span>
                     ) : (
-                      <span className="inline-flex items-center justify-center w-6 h-6 text-[11px]">{i + 1}</span>
+                      <span className="inline-flex items-center justify-center w-6 h-6 text-[13px]">{i + 1}</span>
                     )}
                   </td>
                   <td className="py-4 px-3 font-semibold text-[#f0f0f8] whitespace-nowrap">{s.key}</td>

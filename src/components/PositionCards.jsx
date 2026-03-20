@@ -4,7 +4,7 @@ import { formatDate } from '../engine';
 function Chip({ label, value, color }) {
   return (
     <div className="bg-[#0a0a14] border border-[#1a1a2e] rounded-xl px-4 py-3">
-      <div className="text-[10px] text-[#555570] uppercase tracking-wider mb-1 font-semibold">{label}</div>
+      <div className="text-[13px] text-[#555570] uppercase tracking-wider mb-1 font-semibold">{label}</div>
       <div className="text-[12px] font-mono tabular-nums font-semibold" style={{ color: color || '#f0f0f8' }}>{value}</div>
     </div>
   );
@@ -32,33 +32,33 @@ function PositionCard({ position, index, benchmark, btcUsd }) {
       <button onClick={() => setOpen(!open)}
         className="w-full px-6 py-5 flex items-center justify-between hover:bg-[rgba(255,255,255,0.01)] transition-colors text-left">
         <div className="flex items-center gap-5">
-          <div className="w-8 h-8 rounded-xl bg-[#0a0a14] border border-[#1a1a2e] flex items-center justify-center text-[11px] font-mono text-[#555570] font-bold">
+          <div className="w-8 h-8 rounded-xl bg-[#0a0a14] border border-[#1a1a2e] flex items-center justify-center text-[13px] font-mono text-[#555570] font-bold">
             {index + 1}
           </div>
           <div>
             <div className="text-[13px] text-[#f0f0f8] font-semibold">
               {formatDate(entryDate)} <span className="text-[#555570] mx-1.5">&rarr;</span> {formatDate(exitDate)}
             </div>
-            <div className="text-[11px] text-[#555570] mt-1">{days}d &middot; {rebalances} rebal</div>
+            <div className="text-[13px] text-[#555570] mt-1">{days}d &middot; {rebalances} rebal</div>
           </div>
         </div>
         <div className="flex items-center gap-6">
           <div className="text-right hidden sm:block">
-            <div className="text-[10px] text-[#555570] font-semibold uppercase">Fees</div>
+            <div className="text-[13px] text-[#555570] font-semibold uppercase">Fees</div>
             <div className="text-[13px] font-mono tabular-nums text-[#22c55e] font-semibold">+{fmtBtc(fees)}</div>
           </div>
           <div className="text-right hidden sm:block">
-            <div className="text-[10px] text-[#555570] font-semibold uppercase">IL</div>
+            <div className="text-[13px] text-[#555570] font-semibold uppercase">IL</div>
             <div className="text-[13px] font-mono tabular-nums text-[#ef4444] font-semibold">-{fmtBtc(il)}</div>
           </div>
           <div className="text-right">
-            <div className="text-[10px] text-[#555570] font-semibold uppercase">Net</div>
+            <div className="text-[13px] text-[#555570] font-semibold uppercase">Net</div>
             <div className={`text-[13px] font-mono tabular-nums font-bold ${netPnl >= 0 ? 'text-[#22c55e]' : 'text-[#ef4444]'}`}>
               {netPnl >= 0 ? '+' : ''}{fmtBtc(netPnl)}
             </div>
           </div>
           <div className="text-right min-w-[110px] hidden md:block">
-            <div className="text-[10px] text-[#555570] font-semibold uppercase">Balance</div>
+            <div className="text-[13px] text-[#555570] font-semibold uppercase">Balance</div>
             <div className="text-[13px] font-mono tabular-nums text-[#f0f0f8]">
               {fmtBtc(entryBtc)} &rarr; {fmtBtc(exitBtc || 0)}
             </div>
@@ -100,7 +100,7 @@ export default function PositionCards({ positions, benchmark, btcUsd }) {
       <div className="flex items-center justify-between mb-5">
         <h2 className="text-base font-bold text-[#f0f0f8]">
           Positions
-          <span className="ml-3 text-[11px] font-semibold text-[#555570] bg-[#0a0a14] border border-[#1a1a2e] px-3 py-1 rounded-full">
+          <span className="ml-3 text-[13px] font-semibold text-[#555570] bg-[#0a0a14] border border-[#1a1a2e] px-3 py-1 rounded-full">
             {positions.length}
           </span>
         </h2>

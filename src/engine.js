@@ -359,7 +359,7 @@ export function runBacktest(data, config) {
         entryBtc: lpBtc + scBtc, exitBtc: null,
         fees: 0, hedgePnl: 0, il: 0, gas: 0,
         slippage: 0, swapFees: 0, perpFees: 0,
-        rebalances: 0,
+        rebalances: 0, closeReason: null,
         entryWbtcPct: 0.5, entryWethPct: 0.5,
         exitWbtcPct: null, exitWethPct: null,
       };
@@ -374,6 +374,7 @@ export function runBacktest(data, config) {
       currentPosition.exitDate = date;
       currentPosition.exitPrice = ethbtc || currentPosition.entryPrice;
       currentPosition.exitBtc = lpBtc + scBtc;
+      currentPosition.closeReason = 'sma_off';
 
       if (ethbtc && currentPosition.entryPrice) {
         const r = ethbtc / currentPosition.entryPrice;
@@ -407,17 +408,40 @@ export function runBacktest(data, config) {
         const stopLoss = totalBefore - totalAfter;
         if (stopLoss > 0) totalStopLoss += stopLoss;
 
-        // Enter cooldown
+        // Close current position, enter cooldown
         inCooldown = true;
         cooldownRemaining = cooldownLength;
         pendingRebalance = false;
         rangeExitDay = null;
         rebalanceCount++;
-        if (currentPosition) currentPosition.rebalances++;
+
+        if (currentPosition) {
+          currentPosition.exitDate = date;
+          currentPosition.exitPrice = ethbtc || currentPosition.entryPrice;
+          currentPosition.exitBtc = lpBtc + scBtc;
+          currentPosition.closeReason = 'margin_stop';
+          if (ethbtc && currentPosition.entryPrice) {
+            const r = ethbtc / currentPosition.entryPrice;
+            currentPosition.exitWbtcPct = Math.min(1, Math.max(0, 0.5 + (r - 1) * 2.5));
+            currentPosition.exitWethPct = 1 - currentPosition.exitWbtcPct;
+          }
+          positions.push(currentPosition);
+          currentPosition = null;
+        }
 
         // If cooldown is 0, immediately reopen
         if (cooldownLength === 0) {
           inCooldown = false;
+          currentPosition = {
+            entryDate: date, exitDate: null,
+            entryPrice: ethbtc, exitPrice: null,
+            entryBtc: lpBtc + scBtc, exitBtc: null,
+            fees: 0, hedgePnl: 0, il: 0, gas: 0,
+            slippage: 0, swapFees: 0, perpFees: 0,
+            rebalances: 0, closeReason: null,
+            entryWbtcPct: 0.5, entryWethPct: 0.5,
+            exitWbtcPct: null, exitWethPct: null,
+          };
           doOpen(d);
         }
       }
@@ -431,6 +455,16 @@ export function runBacktest(data, config) {
         if (cooldownRemaining <= 0) {
           // Cooldown over: reopen at current prices
           inCooldown = false;
+          currentPosition = {
+            entryDate: date, exitDate: null,
+            entryPrice: ethbtc, exitPrice: null,
+            entryBtc: lpBtc + scBtc, exitBtc: null,
+            fees: 0, hedgePnl: 0, il: 0, gas: 0,
+            slippage: 0, swapFees: 0, perpFees: 0,
+            rebalances: 0, closeReason: null,
+            entryWbtcPct: 0.5, entryWethPct: 0.5,
+            exitWbtcPct: null, exitWethPct: null,
+          };
           doOpen(d);
         }
       }
@@ -458,12 +492,36 @@ export function runBacktest(data, config) {
 
         // Check if delay period has elapsed
         if (i - rangeExitDay >= rebalanceDelay) {
-          // Close and reopen at current prices
+          // Close current position
           doClose(d);
+          rebalanceCount++;
+
+          if (currentPosition) {
+            currentPosition.exitDate = date;
+            currentPosition.exitPrice = ethbtc || currentPosition.entryPrice;
+            currentPosition.exitBtc = lpBtc + scBtc;
+            currentPosition.closeReason = 'rebalance';
+            if (ethbtc && currentPosition.entryPrice) {
+              const r = ethbtc / currentPosition.entryPrice;
+              currentPosition.exitWbtcPct = Math.min(1, Math.max(0, 0.5 + (r - 1) * 2.5));
+              currentPosition.exitWethPct = 1 - currentPosition.exitWbtcPct;
+            }
+            positions.push(currentPosition);
+          }
+
+          // Open new position
+          currentPosition = {
+            entryDate: date, exitDate: null,
+            entryPrice: ethbtc, exitPrice: null,
+            entryBtc: lpBtc + scBtc, exitBtc: null,
+            fees: 0, hedgePnl: 0, il: 0, gas: 0,
+            slippage: 0, swapFees: 0, perpFees: 0,
+            rebalances: 0, closeReason: null,
+            entryWbtcPct: 0.5, entryWethPct: 0.5,
+            exitWbtcPct: null, exitWethPct: null,
+          };
           doOpen(d);
 
-          rebalanceCount++;
-          if (currentPosition) currentPosition.rebalances++;
           pendingRebalance = false;
           rangeExitDay = null;
         }
@@ -495,12 +553,35 @@ export function runBacktest(data, config) {
               pendingRebalance = true;
               rangeExitDay = i;
             } else {
-              // Instant rebalance
+              // Instant rebalance: close current position
               doClose(d);
-              doOpen(d);
-
               rebalanceCount++;
-              if (currentPosition) currentPosition.rebalances++;
+
+              if (currentPosition) {
+                currentPosition.exitDate = date;
+                currentPosition.exitPrice = ethbtc || currentPosition.entryPrice;
+                currentPosition.exitBtc = lpBtc + scBtc;
+                currentPosition.closeReason = 'rebalance';
+                if (ethbtc && currentPosition.entryPrice) {
+                  const r = ethbtc / currentPosition.entryPrice;
+                  currentPosition.exitWbtcPct = Math.min(1, Math.max(0, 0.5 + (r - 1) * 2.5));
+                  currentPosition.exitWethPct = 1 - currentPosition.exitWbtcPct;
+                }
+                positions.push(currentPosition);
+              }
+
+              // Open new position
+              currentPosition = {
+                entryDate: date, exitDate: null,
+                entryPrice: ethbtc, exitPrice: null,
+                entryBtc: lpBtc + scBtc, exitBtc: null,
+                fees: 0, hedgePnl: 0, il: 0, gas: 0,
+                slippage: 0, swapFees: 0, perpFees: 0,
+                rebalances: 0, closeReason: null,
+                entryWbtcPct: 0.5, entryWethPct: 0.5,
+                exitWbtcPct: null, exitWethPct: null,
+              };
+              doOpen(d);
             }
           }
         }
@@ -550,8 +631,8 @@ export function runBacktest(data, config) {
       // Legacy fields for backward compatibility
       ethbtc: ethbtc || null,
       btceth: ethbtc ? parseFloat((1 / ethbtc).toFixed(4)) : null,
-      apy: apy || null,
-      funding: fundingRate || null,
+      apy: apy ?? null,
+      funding: fundingRate ?? null,
       on,
       hedgeOpen: shortOpen,
       hedgeExposure: hedge ? parseFloat(((lpBtc + scBtc) * HEDGE_RATIO).toFixed(6)) : 0,
@@ -567,6 +648,7 @@ export function runBacktest(data, config) {
     currentPosition.exitDate = lastValid.date;
     currentPosition.exitPrice = lastValid.ethbtc || currentPosition.entryPrice;
     currentPosition.exitBtc = lpBtc + scBtc;
+    currentPosition.closeReason = 'end';
     positions.push(currentPosition);
   }
 
@@ -815,11 +897,22 @@ export function runAllScenarios(data, gasOverride = null, slippage = DEFAULT_SLI
   for (const timing of ['always', 'sma']) {
     const hybrid = runHybridBacktest(data, { timing, offMode: 'B', gasOverride, slippage, rebalanceDelay, leverage, marginThreshold, cooldownDays, exchange });
     const label = timing === 'always' ? 'Always On' : 'SMA Timing';
+
+    // Calculate actual MaxDD from the combined hybrid series
+    let hybridPeak = 1, hybridMaxDD = 0;
+    for (const s of hybrid.series) {
+      if (s.btc > hybridPeak) hybridPeak = s.btc;
+      const dd = (s.btc - hybridPeak) / hybridPeak;
+      if (dd < hybridMaxDD) hybridMaxDD = dd;
+    }
+    const hybridMaxDDPct = hybridMaxDD * 100;
+    const hybridCagrDd = hybridMaxDDPct !== 0 ? hybrid.metrics.cagr / Math.abs(hybridMaxDDPct) : Infinity;
+
     base.push({
       key: `Hybrid 50/50 / ${label} / Shared Hedge`,
       result: {
         metrics: {
-          ...hybrid.metrics, maxDD: 0, cagrDdRatio: 0, rebalanceCount: 0,
+          ...hybrid.metrics, maxDD: parseFloat(hybridMaxDDPct.toFixed(4)), cagrDdRatio: parseFloat(hybridCagrDd.toFixed(2)), rebalanceCount: 0,
           totalDays: hybrid.series.length,
           activeDays: hybrid.series.filter(s => s.on).length,
           years: parseFloat((hybrid.series.length / 365).toFixed(2)),

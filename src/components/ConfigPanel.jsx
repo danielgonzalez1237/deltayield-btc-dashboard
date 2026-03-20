@@ -3,7 +3,7 @@ import { useState } from 'react';
 function PillToggle({ label, value, onChange, options, disabled }) {
   return (
     <div className="space-y-3">
-      <span className="text-[11px] text-[#555570] font-semibold uppercase tracking-[0.12em] block">{label}</span>
+      <span className="text-[13px] text-[#555570] font-semibold uppercase tracking-[0.12em] block">{label}</span>
       <div className={`inline-flex bg-[#0a0a14] border border-[#1a1a2e] rounded-xl p-1 gap-1 ${disabled ? 'opacity-40 pointer-events-none' : ''}`}>
         {options.map(opt => (
           <button
@@ -40,7 +40,7 @@ export default function ConfigPanel({
   exchange, setExchange,
 }) {
   const [gasOpen, setGasOpen] = useState(false);
-  const [hedgeOpen, setHedgeOpen] = useState(false);
+  const [hedgeOpen, setHedgeOpen] = useState(true);
 
   return (
     <div className="bg-[#0d0d17] border border-[#1a1a2e] rounded-3xl p-8 mb-10">
@@ -63,14 +63,14 @@ export default function ConfigPanel({
         <div className="mt-8 pt-8 border-t border-[#1a1a2e]/50">
           <button onClick={() => setHedgeOpen(!hedgeOpen)}
             className="flex items-center gap-3 mb-6 group">
-            <span className="text-[11px] text-[#555570] font-semibold uppercase tracking-[0.12em] group-hover:text-[#f0f0f8] transition-colors">
+            <span className="text-[13px] text-[#555570] font-semibold uppercase tracking-[0.12em] group-hover:text-[#f0f0f8] transition-colors">
               Hedge Engine
             </span>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
               className={`text-[#555570] transition-transform duration-200 ${hedgeOpen ? 'rotate-180' : ''}`}>
               <path d="M6 9l6 6 6-6" />
             </svg>
-            <span className="text-[10px] text-[#8888a8] bg-[#0a0a14] border border-[#1a1a2e] rounded-lg px-3 py-1 font-mono">
+            <span className="text-[13px] text-[#8888a8] bg-[#0a0a14] border border-[#1a1a2e] rounded-lg px-3 py-1 font-mono">
               {leverage}x / {(marginThreshold * 100).toFixed(0)}% / {cooldownDays * 24}h
             </span>
           </button>
@@ -138,7 +138,7 @@ export default function ConfigPanel({
 
         {/* Gas */}
         <div className="space-y-3">
-          <span className="text-[11px] text-[#555570] font-semibold uppercase tracking-[0.12em] block">Gas</span>
+          <span className="text-[13px] text-[#555570] font-semibold uppercase tracking-[0.12em] block">Gas</span>
           <button onClick={() => setGasOpen(!gasOpen)}
             className={`flex items-center gap-3 px-4 py-2 text-[12px] font-semibold rounded-xl border transition-all duration-200 ${
               gasOverride !== null
@@ -152,7 +152,7 @@ export default function ConfigPanel({
 
         {/* Slippage */}
         <div className="space-y-3">
-          <span className="text-[11px] text-[#555570] font-semibold uppercase tracking-[0.12em] block">Slippage</span>
+          <span className="text-[13px] text-[#555570] font-semibold uppercase tracking-[0.12em] block">Slippage</span>
           <div className="flex items-center gap-4 bg-[#0a0a14] border border-[#1a1a2e] rounded-xl px-4 py-2">
             <input type="range" min="0" max="50" value={slippage * 10000}
               onChange={e => setSlippage(parseInt(e.target.value) / 10000)} className="w-28" />
@@ -169,18 +169,12 @@ export default function ConfigPanel({
           options={[
             { value: 0, label: 'Instant' },
             { value: 1, label: '24h' },
+            { value: 1.5, label: '36h' },
             { value: 2, label: '48h' },
             { value: 3, label: '72h' },
             { value: 4, label: '96h' },
           ]} />
 
-        <div className="w-px h-12 bg-[#1a1a2e] hidden lg:block self-center" />
-
-        <PillToggle label="Swap Fee" value={feeTier} onChange={setFeeTier}
-          options={[
-            { value: '005', label: '0.05%' },
-            { value: '030', label: '0.30%' },
-          ]} />
       </div>
 
       {/* Gas expanded panel */}
@@ -196,11 +190,11 @@ export default function ConfigPanel({
               ${gasOverride !== null ? gasOverride.toFixed(2) : 'auto'}
             </span>
             <button onClick={() => setGasOverride(null)}
-              className="text-[11px] text-[#8888a8] hover:text-[#f7931a] transition-colors px-4 py-2 rounded-xl border border-[#1a1a2e] hover:border-[#f7931a]">
+              className="text-[13px] text-[#8888a8] hover:text-[#f7931a] transition-colors px-4 py-2 rounded-xl border border-[#1a1a2e] hover:border-[#f7931a]">
               Reset
             </button>
           </div>
-          <div className="flex gap-6 text-[11px] text-[#555570] flex-wrap">
+          <div className="flex gap-6 text-[13px] text-[#555570] flex-wrap">
             <span className="font-semibold text-[#8888a8]">ARB:</span>
             <span>2021: $3</span><span>2022: $1.50</span><span>2023: $0.84</span><span>2024+: $0.03</span>
             <span className="ml-6 font-semibold text-[#8888a8]">ETH:</span>

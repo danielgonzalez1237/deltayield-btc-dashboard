@@ -10,7 +10,7 @@ function ChartTooltip({ active, payload, label, isUsd }) {
   if (!active || !payload?.length) return null;
   return (
     <div className="bg-[#12121e] border border-[#252540] rounded-2xl px-5 py-4 text-xs shadow-2xl shadow-black/50">
-      <div className="text-[#555570] mb-3 text-[10px] font-semibold uppercase tracking-wider">{label}</div>
+      <div className="text-[#555570] mb-3 text-[13px] font-semibold uppercase tracking-wider">{label}</div>
       {payload.filter(p => p.value != null).map((p, i) => (
         <div key={i} className="flex justify-between gap-8 py-1">
           <span className="flex items-center gap-2">
@@ -29,9 +29,9 @@ function ChartTooltip({ active, payload, label, isUsd }) {
 function StatCard({ label, value, sub, color }) {
   return (
     <div className="bg-[#0d0d17] border border-[#1a1a2e] rounded-2xl px-6 py-5 flex-1 min-w-[150px]">
-      <div className="text-[11px] text-[#555570] uppercase tracking-wider mb-2 font-semibold">{label}</div>
+      <div className="text-[13px] text-[#555570] uppercase tracking-wider mb-2 font-semibold">{label}</div>
       <div className={`text-xl font-mono font-bold tabular-nums ${color}`}>{value}</div>
-      {sub && <div className="text-[11px] text-[#555570] mt-1">{sub}</div>}
+      {sub && <div className="text-[13px] text-[#555570] mt-1">{sub}</div>}
     </div>
   );
 }
@@ -81,26 +81,26 @@ export default function HybridChart({ hybridResult, arbOnlyResult, ethOnlyResult
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-base font-bold text-[#f0f0f8]">Hybrid 50/50 Strategy</h2>
-            <p className="text-[11px] text-[#555570] mt-1">ARB 0.05% + ETH 0.30% with shared hedge vs single-pool strategies</p>
+            <p className="text-[13px] text-[#555570] mt-1">ARB 0.05% + ETH 0.30% with shared hedge vs single-pool strategies</p>
           </div>
           <TimeRangeSelector value={timeRange} onChange={setTimeRange} />
         </div>
-        <ResponsiveContainer width="100%" height={420}>
+        <ResponsiveContainer width="100%" height={450}>
           <ComposedChart data={chartData} margin={{ top: 5, right: 10, left: isUsd ? 10 : -5, bottom: 0 }}>
             <defs>
               <linearGradient id="hybridGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#f7931a" stopOpacity={0.1} />
+                <stop offset="0%" stopColor="#f7931a" stopOpacity={0.2} />
                 <stop offset="100%" stopColor="#f7931a" stopOpacity={0} />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.025)" />
-            <XAxis dataKey="dateLabel" tick={{ fontSize: 10, fill: '#555570' }} axisLine={{ stroke: '#1a1a2e' }} tickLine={false} interval={Math.floor(chartData.length / 7)} />
-            <YAxis tick={{ fontSize: 10, fill: '#555570' }} axisLine={false} tickLine={false}
+            <XAxis dataKey="dateLabel" tick={{ fontSize: 12, fill: '#555570' }} axisLine={{ stroke: '#1a1a2e' }} tickLine={false} interval={Math.floor(chartData.length / 7)} />
+            <YAxis tick={{ fontSize: 12, fill: '#555570' }} axisLine={false} tickLine={false}
               tickFormatter={v => isUsd ? `$${(v / 1000).toFixed(0)}k` : v.toFixed(2)} />
             <Tooltip content={<ChartTooltip isUsd={isUsd} />} />
-            <Area type="monotone" dataKey="hybrid" name="Hybrid 50/50" stroke="#f7931a" fill="url(#hybridGrad)" strokeWidth={2.5} dot={false} />
-            <Line type="monotone" dataKey="arbOnly" name="100% ARB" stroke="#3b82f6" strokeWidth={1} strokeDasharray="4 3" dot={false} strokeOpacity={0.6} />
-            <Line type="monotone" dataKey="ethOnly" name="100% ETH" stroke="#a855f7" strokeWidth={1} strokeDasharray="4 3" dot={false} strokeOpacity={0.6} />
+            <Area type="monotone" dataKey="hybrid" name="Hybrid 50/50" stroke="#f7931a" fill="url(#hybridGrad)" strokeWidth={3} dot={false} />
+            <Line type="monotone" dataKey="arbOnly" name="100% ARB" stroke="#3b82f6" strokeWidth={2} strokeDasharray="4 3" dot={false} strokeOpacity={0.8} />
+            <Line type="monotone" dataKey="ethOnly" name="100% ETH" stroke="#a855f7" strokeWidth={2} strokeDasharray="4 3" dot={false} strokeOpacity={0.8} />
           </ComposedChart>
         </ResponsiveContainer>
       </div>

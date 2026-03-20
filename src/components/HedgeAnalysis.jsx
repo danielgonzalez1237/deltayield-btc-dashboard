@@ -10,7 +10,7 @@ function ChartTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
   return (
     <div className="bg-[#12121e] border border-[#252540] rounded-2xl px-5 py-4 text-xs shadow-2xl shadow-black/50">
-      <div className="text-[#555570] mb-3 text-[10px] font-semibold uppercase tracking-wider">{label}</div>
+      <div className="text-[#555570] mb-3 text-[13px] font-semibold uppercase tracking-wider">{label}</div>
       {payload.map((p, i) => (
         <div key={i} className="flex justify-between gap-8 py-1">
           <span className="flex items-center gap-2">
@@ -29,9 +29,9 @@ function ChartTooltip({ active, payload, label }) {
 function StatCard({ label, value, sub, color }) {
   return (
     <div className="bg-[#0d0d17] border border-[#1a1a2e] rounded-2xl px-6 py-5">
-      <div className="text-[11px] text-[#555570] uppercase tracking-wider mb-2 font-semibold">{label}</div>
+      <div className="text-[13px] text-[#555570] uppercase tracking-wider mb-2 font-semibold">{label}</div>
       <div className={`text-xl font-mono font-bold tabular-nums ${color || 'text-[#f0f0f8]'}`}>{value}</div>
-      {sub && <div className="text-[11px] text-[#555570] mt-1">{sub}</div>}
+      {sub && <div className="text-[13px] text-[#555570] mt-1">{sub}</div>}
     </div>
   );
 }
@@ -101,21 +101,21 @@ export default function HedgeAnalysis({ series, metrics, costs, benchmark }) {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-base font-bold text-[#f0f0f8]">Hedge P&L Over Time</h2>
-            <p className="text-[11px] text-[#555570] mt-1">Cumulative funding income + short P&L in BTC</p>
+            <p className="text-[13px] text-[#555570] mt-1">Cumulative funding income + short P&L in BTC</p>
           </div>
           <TimeRangeSelector value={timeRange} onChange={setTimeRange} />
         </div>
-        <ResponsiveContainer width="100%" height={380}>
+        <ResponsiveContainer width="100%" height={450}>
           <ComposedChart data={chartData} margin={{ top: 5, right: 10, left: -5, bottom: 0 }}>
             <defs>
               <linearGradient id="hedgeGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#22c55e" stopOpacity={0.1} />
+                <stop offset="0%" stopColor="#22c55e" stopOpacity={0.2} />
                 <stop offset="100%" stopColor="#22c55e" stopOpacity={0.0} />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.025)" />
-            <XAxis dataKey="dateLabel" tick={{ fontSize: 10, fill: '#555570' }} axisLine={{ stroke: '#1a1a2e' }} tickLine={false} interval={Math.floor(chartData.length / 7)} />
-            <YAxis tick={{ fontSize: 10, fill: '#555570' }} axisLine={false} tickLine={false} tickFormatter={v => v.toFixed(2)} />
+            <XAxis dataKey="dateLabel" tick={{ fontSize: 12, fill: '#555570' }} axisLine={{ stroke: '#1a1a2e' }} tickLine={false} interval={Math.floor(chartData.length / 7)} />
+            <YAxis tick={{ fontSize: 12, fill: '#555570' }} axisLine={false} tickLine={false} tickFormatter={v => v.toFixed(2)} />
             <Tooltip content={<ChartTooltip />} />
             <Area type="monotone" dataKey="hedgePnl" name="Hedge P&L" stroke="#22c55e" fill="url(#hedgeGrad)" strokeWidth={2} dot={false} />
             <Line type="monotone" dataKey="shortPnl" name="Short P&L" stroke="#ef4444" strokeWidth={1.5} dot={false} strokeDasharray="4 3" />
@@ -128,17 +128,17 @@ export default function HedgeAnalysis({ series, metrics, costs, benchmark }) {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-base font-bold text-[#f0f0f8]">Capital Allocation</h2>
-            <p className="text-[11px] text-[#555570] mt-1">LP (pool) vs Short Collateral breakdown</p>
+            <p className="text-[13px] text-[#555570] mt-1">LP (pool) vs Short Collateral breakdown</p>
           </div>
         </div>
-        <ResponsiveContainer width="100%" height={300}>
+        <ResponsiveContainer width="100%" height={450}>
           <ComposedChart data={utilizationData} margin={{ top: 5, right: 10, left: -5, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.025)" />
-            <XAxis dataKey="dateLabel" tick={{ fontSize: 10, fill: '#555570' }} axisLine={{ stroke: '#1a1a2e' }} tickLine={false} interval={Math.floor(utilizationData.length / 7)} />
-            <YAxis tick={{ fontSize: 10, fill: '#555570' }} axisLine={false} tickLine={false} tickFormatter={v => v.toFixed(2)} />
+            <XAxis dataKey="dateLabel" tick={{ fontSize: 12, fill: '#555570' }} axisLine={{ stroke: '#1a1a2e' }} tickLine={false} interval={Math.floor(utilizationData.length / 7)} />
+            <YAxis tick={{ fontSize: 12, fill: '#555570' }} axisLine={false} tickLine={false} tickFormatter={v => v.toFixed(2)} />
             <Tooltip content={<ChartTooltip />} />
-            <Area type="monotone" dataKey="lpBtc" name="LP (Pool)" stroke="#f7931a" fill="rgba(247,147,26,0.08)" strokeWidth={2} dot={false} stackId="1" />
-            <Area type="monotone" dataKey="scBtc" name="Short Collateral" stroke="#3b82f6" fill="rgba(59,130,246,0.08)" strokeWidth={2} dot={false} stackId="1" />
+            <Area type="monotone" dataKey="lpBtc" name="LP (Pool)" stroke="#f7931a" fill="rgba(247,147,26,0.2)" strokeWidth={2} dot={false} stackId="1" />
+            <Area type="monotone" dataKey="scBtc" name="Short Collateral" stroke="#3b82f6" fill="rgba(59,130,246,0.2)" strokeWidth={2} dot={false} stackId="1" />
           </ComposedChart>
         </ResponsiveContainer>
       </div>
@@ -147,17 +147,17 @@ export default function HedgeAnalysis({ series, metrics, costs, benchmark }) {
       {stopEvents.length > 0 && (
         <div className="bg-[#0d0d17] border border-[#1a1a2e] rounded-3xl p-8">
           <h3 className="text-sm font-bold text-[#f0f0f8] mb-1">Margin Stop Events</h3>
-          <p className="text-[11px] text-[#555570] mb-5">
+          <p className="text-[13px] text-[#555570] mb-5">
             {stopEvents.length} forced closures — each triggers cooldown before reopening
           </p>
           <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
             <table className="w-full text-[12px]">
               <thead className="sticky top-0 bg-[#0d0d17]">
                 <tr className="border-b border-[#1a1a2e]">
-                  <th className="text-left py-3 px-3 text-[#555570] font-semibold uppercase tracking-wider text-[10px]">#</th>
-                  <th className="text-left py-3 px-3 text-[#555570] font-semibold uppercase tracking-wider text-[10px]">Date</th>
-                  <th className="text-right py-3 px-3 text-[#555570] font-semibold uppercase tracking-wider text-[10px]">ETH/USD</th>
-                  <th className="text-right py-3 px-3 text-[#555570] font-semibold uppercase tracking-wider text-[10px]">BTC Balance</th>
+                  <th className="text-left py-3 px-3 text-[#555570] font-semibold uppercase tracking-wider text-[13px]">#</th>
+                  <th className="text-left py-3 px-3 text-[#555570] font-semibold uppercase tracking-wider text-[13px]">Date</th>
+                  <th className="text-right py-3 px-3 text-[#555570] font-semibold uppercase tracking-wider text-[13px]">ETH/USD</th>
+                  <th className="text-right py-3 px-3 text-[#555570] font-semibold uppercase tracking-wider text-[13px]">BTC Balance</th>
                 </tr>
               </thead>
               <tbody>
