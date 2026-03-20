@@ -320,11 +320,17 @@ export function runBacktest(data, config) {
   }
 
   // ─── Helper: open position ─────────────────────────────
+  // If a preceding doClose(keepUsd=true) was called, scUsd holds leftover
+  // USD from the short. doOpen will reuse it directly for new collateral,
+  // avoiding the unnecessary USD→BTC→USD round-trip slippage.
   function doOpen(d, dayIndex) {
     const eb = d.ethbtc;
     const bu = getBtcUsd(d);
     const eu = eb * bu;
-    let totalAum = lpBtc + scBtc;
+
+    // Available resources: lpBtc (in BTC) + leftover scUsd (from keepUsd close)
+    const leftoverUsd = Math.max(0, scUsd);
+    let totalAum = lpBtc + leftoverUsd / bu; // total AUM in BTC terms
 
     // Gas for opening
     const gasUsd = getGasUsd(d);
@@ -351,20 +357,52 @@ export function runBacktest(data, config) {
     }
 
     if (hedgeThisPosition && effectiveRatio > 0.01) {
-      // Split: LP gets (1 - effectiveRatio/leverage), short collateral gets effectiveRatio/leverage
-      let scBtcNew = totalAum * effectiveRatio / leverage;
-      let lpNew = totalAum - scBtcNew;
+      // Target allocation
+      const targetCollBtc = totalAum * effectiveRatio / leverage;
+      const targetCollUsd = targetCollBtc * bu;
+      const lpAllocationBtc = totalAum - targetCollBtc;
 
-      // Convert collateral BTC to USD (with slippage)
-      const scSlip = scBtcNew * slippage;
-      scBtcNew -= scSlip;
-      totalSlippage += scSlip;
-      if (currentPosition) currentPosition.slippage += scSlip;
+      // ─── Smart Collateral Routing ────────────────────────
+      // Reuse leftover USD from previous short to avoid round-trip slippage.
+      // Only charge slippage on the NET conversion needed.
+      let collSlippage = 0;
 
-      const scUsdNew = scBtcNew * bu;
-      scInitUsd = scUsdNew;
-      scUsd = scUsdNew;
-      scBtc = scBtcNew;
+      if (leftoverUsd > 0) {
+        if (leftoverUsd >= targetCollUsd) {
+          // Enough USD available → reuse for collateral (ZERO slippage on collateral!)
+          // Excess USD → route to LP tokens. The excess can go directly to
+          // WETH or WBTC (single swap), so charge slippage only once.
+          scUsd = targetCollUsd;
+          const excessUsd = leftoverUsd - targetCollUsd;
+          if (excessUsd > 0) {
+            const excessBtcEquiv = excessUsd / bu;
+            collSlippage = excessBtcEquiv * slippage;
+            lpBtc = lpAllocationBtc + excessBtcEquiv - collSlippage;
+          } else {
+            lpBtc = lpAllocationBtc;
+          }
+        } else {
+          // Not enough USD → use all available, convert deficit from BTC→USD
+          const deficitUsd = targetCollUsd - leftoverUsd;
+          const deficitBtc = deficitUsd / bu;
+          collSlippage = deficitBtc * slippage;
+          scUsd = targetCollUsd;
+          lpBtc = lpAllocationBtc - collSlippage;
+        }
+      } else {
+        // No leftover USD: full BTC→USD conversion (fresh open)
+        let scBtcConvert = targetCollBtc;
+        collSlippage = scBtcConvert * slippage;
+        scBtcConvert -= collSlippage;
+        scUsd = scBtcConvert * bu;
+        lpBtc = lpAllocationBtc;
+      }
+
+      totalSlippage += collSlippage;
+      if (currentPosition) currentPosition.slippage += collSlippage;
+
+      scInitUsd = scUsd;
+      scBtc = scUsd / bu; // tracking only
 
       // Short: notional = totalAum * effectiveRatio * bu
       const shortNotionalUsd = totalAum * effectiveRatio * bu;
@@ -382,21 +420,30 @@ export function runBacktest(data, config) {
       totalPerpFees += perpFee / bu;
       if (currentPosition) currentPosition.perpFees += perpFee / bu;
 
-      // Swap fee + slippage on LP half
-      const swapFeeCost = lpNew * 0.5 * swapFee;
-      const slipFeeCost = lpNew * 0.5 * slippage;
-      lpNew -= swapFeeCost + slipFeeCost;
+      // LP swap: 50% needs to be WETH (swap fee + slippage)
+      // In concentrated liquidity at ±10% range exit, LP is ~100% one token,
+      // so swapping ~50% to the other token is correct.
+      const swapFeeCost = lpBtc * 0.5 * swapFee;
+      const slipFeeCost = lpBtc * 0.5 * slippage;
+      lpBtc -= swapFeeCost + slipFeeCost;
       totalSwapFees += swapFeeCost;
       totalSlippage += slipFeeCost;
       if (currentPosition) {
         currentPosition.swapFees += swapFeeCost;
         currentPosition.slippage += slipFeeCost;
       }
-
-      lpBtc = lpNew;
     } else {
       // No hedge (either disabled globally or by mitigant)
-      lpBtc = totalAum;
+      // If there's leftover USD, convert to BTC for LP (with slippage)
+      if (leftoverUsd > 0) {
+        const convertBtc = leftoverUsd / bu;
+        const slip = convertBtc * slippage;
+        lpBtc = totalAum - slip;
+        totalSlippage += slip;
+        if (currentPosition) currentPosition.slippage += slip;
+      } else {
+        lpBtc = totalAum;
+      }
       scBtc = 0;
       scUsd = 0;
       scInitUsd = 0;
@@ -418,7 +465,10 @@ export function runBacktest(data, config) {
   }
 
   // ─── Helper: close position ────────────────────────────
-  function doClose(d) {
+  // keepUsd=true: leave scUsd unconverted for immediate reuse in doOpen.
+  //   This avoids the USD→BTC→USD round-trip slippage during rebalances.
+  // keepUsd=false: convert everything to BTC (terminal close, going to cooldown, etc.)
+  function doClose(d, keepUsd = false) {
     const eb = d.ethbtc;
     const bu = getBtcUsd(d);
 
@@ -472,25 +522,34 @@ export function runBacktest(data, config) {
       totalPerpFees += perpFee / bu;
       if (currentPosition) currentPosition.perpFees += perpFee / bu;
 
-      // Convert remaining USD collateral back to BTC (with slippage)
-      const scBtcRaw = Math.max(0, scUsd) / bu;
-      const scSlip = scBtcRaw * slippage;
-      scBtc = scBtcRaw - scSlip;
-      totalSlippage += scSlip;
-      if (currentPosition) currentPosition.slippage += scSlip;
+      if (keepUsd) {
+        // Keep USD for immediate reuse in doOpen (avoid round-trip slippage)
+        // scUsd stays as is, scBtc = 0 (not converted)
+        scBtc = 0;
+      } else {
+        // Convert remaining USD collateral back to BTC (with slippage)
+        const scBtcRaw = Math.max(0, scUsd) / bu;
+        const scSlip = scBtcRaw * slippage;
+        scBtc = scBtcRaw - scSlip;
+        totalSlippage += scSlip;
+        if (currentPosition) currentPosition.slippage += scSlip;
+        scUsd = 0;
+      }
 
       shortOpen = false;
       shortQtyEth = 0;
       shortEntryEthUsd = 0;
-      scUsd = 0;
       scInitUsd = 0;
     }
 
-    // Consolidate
-    const total = lpBtc + scBtc;
-    lpBtc = total;
+    // Consolidate BTC portion only (scUsd stays if keepUsd)
+    lpBtc = lpBtc + scBtc;
     scBtc = 0;
     rangeCenter = null;
+
+    if (!keepUsd) {
+      scUsd = 0;
+    }
   }
 
   // ─── Helper: check margin stop ─────────────────────────
@@ -560,9 +619,9 @@ export function runBacktest(data, config) {
       doOpen(d, i);
     }
 
-    // ─── ON → OFF transition ─────────────────────────────
+    // ─── ON → OFF transition (terminal close — convert everything to BTC)
     if (!on && wasOn && currentPosition) {
-      doClose(d);
+      doClose(d, false);
       finalizePosition(date, ethbtc, 'sma_off');
       pendingRebalance = false;
       rangeExitDay = null;
@@ -578,17 +637,16 @@ export function runBacktest(data, config) {
         marginStopToday = true;
         marginStopCount++;
 
+        // Update mitigants FIRST to know cooldown duration
+        onMarginStop(date);
+        const effectiveCooldown = getEffectiveCooldown();
+
+        // keepUsd=true ONLY if immediate reopen (cooldown=0)
         const totalBefore = lpBtc + scBtc;
-        doClose(d);
-        const totalAfter = lpBtc + scBtc;
+        doClose(d, effectiveCooldown === 0);
+        const totalAfter = lpBtc + (scUsd > 0 ? scUsd / getBtcUsd(d) : 0) + scBtc;
         const stopLoss = totalBefore - totalAfter;
         if (stopLoss > 0) totalStopLoss += stopLoss;
-
-        // Update mitigants BEFORE deciding cooldown
-        onMarginStop(date);
-
-        // Get effective cooldown (may be exponential)
-        const effectiveCooldown = getEffectiveCooldown();
 
         inCooldown = true;
         cooldownRemaining = effectiveCooldown;
@@ -637,7 +695,7 @@ export function runBacktest(data, config) {
 
         // Check if delay period has elapsed
         if (i - rangeExitDay >= rebalanceDelay) {
-          doClose(d);
+          doClose(d, true); // keepUsd: immediate reopen follows
           rebalanceCount++;
           onNormalRebalance();
           finalizePosition(date, ethbtc, 'rebalance');
@@ -679,7 +737,7 @@ export function runBacktest(data, config) {
               pendingRebalance = true;
               rangeExitDay = i;
             } else {
-              doClose(d);
+              doClose(d, true); // keepUsd: immediate reopen follows
               rebalanceCount++;
               onNormalRebalance();
               finalizePosition(date, ethbtc, 'rebalance');
