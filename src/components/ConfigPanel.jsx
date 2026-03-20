@@ -1,16 +1,16 @@
 import { useState } from 'react';
 
-function PillToggle({ label, value, onChange, options, disabled }) {
+function PillToggle({ label, value, onChange, options, disabled, compact }) {
   return (
-    <div className="space-y-3">
+    <div className={compact ? "space-y-2" : "space-y-3"}>
       <span className="text-[13px] text-[#555570] font-semibold uppercase tracking-[0.12em] block">{label}</span>
-      <div className={`inline-flex bg-[#0a0a14] border border-[#1a1a2e] rounded-xl p-1 gap-1 ${disabled ? 'opacity-40 pointer-events-none' : ''}`}>
+      <div className={`inline-flex bg-[#0a0a14] border border-[#1a1a2e] rounded-xl p-1 gap-0.5 flex-wrap ${disabled ? 'opacity-40 pointer-events-none' : ''}`}>
         {options.map(opt => (
           <button
             key={String(opt.value)}
             onClick={() => onChange(opt.value)}
             disabled={disabled}
-            className={`px-4 py-2 text-[12px] font-semibold rounded-lg transition-all duration-200 whitespace-nowrap ${
+            className={`${compact ? 'px-2.5 py-1.5 text-[11px]' : 'px-4 py-2 text-[12px]'} font-semibold rounded-lg transition-all duration-200 whitespace-nowrap ${
               value === opt.value
                 ? 'bg-[#f7931a] text-black shadow-[0_2px_12px_rgba(247,147,26,0.3)]'
                 : 'text-[#8888a8] hover:text-[#f0f0f8] hover:bg-[rgba(255,255,255,0.04)]'
@@ -76,8 +76,8 @@ export default function ConfigPanel({
           </button>
 
           {hedgeOpen && (
-            <div className="flex flex-wrap gap-8 items-end">
-              <PillToggle label="Leverage" value={leverage} onChange={setLeverage}
+            <div className="flex flex-wrap gap-6 items-end">
+              <PillToggle label="Leverage" value={leverage} onChange={setLeverage} compact
                 options={[
                   { value: 1.0, label: '1x' },
                   { value: 1.5, label: '1.5x' },
@@ -89,31 +89,34 @@ export default function ConfigPanel({
                   { value: 5.0, label: '5x' },
                 ]} />
 
-              <div className="w-px h-12 bg-[#1a1a2e] hidden lg:block self-center" />
+              <div className="w-px h-10 bg-[#1a1a2e] hidden lg:block self-center" />
 
-              <PillToggle label="Margin Stop" value={marginThreshold} onChange={setMarginThreshold}
+              <PillToggle label="Margin Stop" value={marginThreshold} onChange={setMarginThreshold} compact
                 options={[
-                  { value: 0.05, label: '5%' },
                   { value: 0.10, label: '10%' },
-                  { value: 0.15, label: '15%' },
                   { value: 0.20, label: '20%' },
-                  { value: 0.25, label: '25%' },
                   { value: 0.30, label: '30%' },
+                  { value: 0.40, label: '40%' },
+                  { value: 0.50, label: '50%' },
+                  { value: 0.60, label: '60%' },
+                  { value: 0.70, label: '70%' },
+                  { value: 0.80, label: '80%' },
                 ]} />
 
-              <div className="w-px h-12 bg-[#1a1a2e] hidden lg:block self-center" />
+              <div className="w-px h-10 bg-[#1a1a2e] hidden lg:block self-center" />
 
-              <PillToggle label="Cooldown" value={cooldownDays} onChange={setCooldownDays}
+              <PillToggle label="Cooldown" value={cooldownDays} onChange={setCooldownDays} compact
                 options={[
                   { value: 0, label: '0h' },
+                  { value: 1, label: '24h' },
                   { value: 2, label: '48h' },
                   { value: 3, label: '72h' },
                   { value: 4, label: '96h' },
                 ]} />
 
-              <div className="w-px h-12 bg-[#1a1a2e] hidden lg:block self-center" />
+              <div className="w-px h-10 bg-[#1a1a2e] hidden lg:block self-center" />
 
-              <PillToggle label="Exchange" value={exchange} onChange={setExchange}
+              <PillToggle label="Exchange" value={exchange} onChange={setExchange} compact
                 options={[
                   { value: 'hl', label: 'Hyperliquid' },
                   { value: 'binance', label: 'Binance' },
@@ -163,9 +166,9 @@ export default function ConfigPanel({
         </div>
       </div>
 
-      {/* Row 4: Rebalance Delay + Swap Fee */}
+      {/* Row 4: Rebalance Delay */}
       <div className="flex flex-wrap gap-8 items-end mt-8 pt-8 border-t border-[#1a1a2e]/50">
-        <PillToggle label="Rebalance Delay" value={rebalanceDelay} onChange={setRebalanceDelay}
+        <PillToggle label="Rebalance Delay" value={rebalanceDelay} onChange={setRebalanceDelay} compact
           options={[
             { value: 0, label: 'Instant' },
             { value: 1, label: '24h' },

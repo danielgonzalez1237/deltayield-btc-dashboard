@@ -715,7 +715,6 @@ export function simulateWithdrawals(series, frequency) {
   const months = { monthly: 1, quarterly: 3, semiannual: 6, annual: 12 }[frequency] || 12;
 
   let btc = START_BTC;
-  let periodStartBtc = START_BTC;
   let totalWithdrawn = 0;
   let lastMonth = null;
   const wSeries = [];
@@ -732,13 +731,14 @@ export function simulateWithdrawals(series, frequency) {
     if (lastMonth === null) lastMonth = mk;
 
     if (mk - lastMonth >= months && i > 0) {
-      const profit = btc - periodStartBtc;
-      if (profit > 0) {
-        btc -= profit;
-        totalWithdrawn += profit;
-        withdrawals.push({ date: s.date, amount: profit, totalWithdrawn });
+      // RULE: Only withdraw BTC units above initial capital (START_BTC).
+      // If balance <= START_BTC, no withdrawal — capital must be preserved.
+      const withdrawable = btc - START_BTC;
+      if (withdrawable > 0) {
+        btc = START_BTC; // Reset to initial capital after withdrawal
+        totalWithdrawn += withdrawable;
+        withdrawals.push({ date: s.date, amount: withdrawable, totalWithdrawn });
       }
-      periodStartBtc = btc;
       lastMonth = mk;
     }
 
