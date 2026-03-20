@@ -758,29 +758,30 @@ export function runBacktest(data, config) {
       totalFundingIncome += hi;
     }
 
-    // ─── Track peak & drawdown ───────────────────────────
-    const totalAum = lpBtc + scBtc;
+    // ─── C7 fix: mark-to-market AUM (not stale scBtc) ────
+    // scBtc is only updated on doOpen/doClose. Between rebalances it's stale.
+    // Compute true collateral value in BTC using current prices + unrealized P&L.
+    let trueScBtc = scBtc;
+    if (shortOpen && ethbtc && scUsd !== 0) {
+      const currentEthUsd = ethbtc * btcUsd;
+      const unrealizedPnl = shortQtyEth * (shortEntryEthUsd - currentEthUsd);
+      trueScBtc = Math.max(0, scUsd + unrealizedPnl) / btcUsd;
+    }
+    const totalAum = lpBtc + trueScBtc;
+
+    // ─── Track peak & drawdown (using true mark-to-market) ──
     if (totalAum > peak) peak = totalAum;
     const dd = (totalAum - peak) / peak;
     if (dd < maxDD) maxDD = dd;
 
     wasOn = on;
 
-    // ─── Series entry ────────────────────────────────────
-    let displayScBtc = scBtc;
-    if (shortOpen && ethbtc) {
-      const eu = ethbtc * btcUsd;
-      const unrealizedPnlUsd = (shortEntryEthUsd - eu) * shortQtyEth;
-      const currentScUsd = scUsd + unrealizedPnlUsd;
-      displayScBtc = Math.max(0, currentScUsd) / btcUsd;
-    }
-
     series.push({
       date,
       btc: parseFloat(totalAum.toFixed(6)),
       btcUsd,
       lpBtc: parseFloat(lpBtc.toFixed(6)),
-      scBtc: parseFloat(displayScBtc.toFixed(6)),
+      scBtc: parseFloat(trueScBtc.toFixed(6)),
       fees: parseFloat(totalFees.toFixed(6)),
       fundingIncome: parseFloat(totalFundingIncome.toFixed(6)),
       shortPnlBtc: parseFloat(totalShortPnl.toFixed(6)),
@@ -800,7 +801,7 @@ export function runBacktest(data, config) {
       funding: fundingRate ?? null,
       on,
       hedgeOpen: shortOpen,
-      hedgeExposure: shortOpen ? parseFloat(((lpBtc + scBtc) * getEffectiveHedgeRatio()).toFixed(6)) : 0,
+      hedgeExposure: shortOpen ? parseFloat(((lpBtc + trueScBtc) * getEffectiveHedgeRatio()).toFixed(6)) : 0,
       rangeCenter: rangeCenter ? parseFloat(rangeCenter.toFixed(8)) : null,
       rangeLower: rangeCenter ? parseFloat((rangeCenter * (1 - RANGE_WIDTH)).toFixed(8)) : null,
       rangeUpper: rangeCenter ? parseFloat((rangeCenter * (1 + RANGE_WIDTH)).toFixed(8)) : null,
@@ -808,12 +809,25 @@ export function runBacktest(data, config) {
   }
 
   // ─── Close final open position ─────────────────────────
+  // C7: Use mark-to-market for final position if short is still open
+  let finalScBtc = scBtc;
+  if (shortOpen && scUsd !== 0 && truncatedData.length > 0) {
+    const lastD = truncatedData[truncatedData.length - 1];
+    const lastEthbtc = lastD.ethbtc;
+    const lastBtcUsd = getBtcUsd(lastD);
+    if (lastEthbtc && lastBtcUsd) {
+      const currentEthUsd = lastEthbtc * lastBtcUsd;
+      const unrealizedPnl = shortQtyEth * (shortEntryEthUsd - currentEthUsd);
+      finalScBtc = Math.max(0, scUsd + unrealizedPnl) / lastBtcUsd;
+    }
+  }
+
   if (currentPosition) {
     const lastValid = truncatedData[truncatedData.length - 1];
     currentPosition.hedgePnl = currentPosition.fundingIncome + currentPosition.shortPnl;
     currentPosition.exitDate = lastValid.date;
     currentPosition.exitPrice = lastValid.ethbtc || currentPosition.entryPrice;
-    currentPosition.exitBtc = lpBtc + scBtc;
+    currentPosition.exitBtc = lpBtc + finalScBtc;
     currentPosition.closeReason = 'end';
     positions.push(currentPosition);
   }
@@ -822,7 +836,7 @@ export function runBacktest(data, config) {
   const totalDays = series.length;
   const activeDays = series.filter(s => s.on).length;
   const years = totalDays / 365;
-  const finalBtc = lpBtc + scBtc;
+  const finalBtc = lpBtc + finalScBtc;
   const trueNet = finalBtc - START_BTC;
   const linearSum = totalFees + totalFundingIncome + totalShortPnl - totalIL - totalGas - totalSlippage - totalSwapFees - totalPerpFees;
   const cagr = years > 0 ? (Math.pow(finalBtc / START_BTC, 1 / years) - 1) * 100 : 0;
