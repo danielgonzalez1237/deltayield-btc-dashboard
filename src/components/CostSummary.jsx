@@ -1,5 +1,5 @@
 export default function CostSummary({ costs, metrics, benchmark, btcUsd }) {
-  const { fees, hedge, il, gas, slippage, swapFees, perpFees, net } = costs;
+  const { fees, fundingIncome, shortPnl, il, gas, slippage, swapFees, perpFees, net } = costs;
   const isUsd = benchmark === 'usd';
   const mul = isUsd ? btcUsd : 1;
   const unit = isUsd ? 'USD' : 'BTC';
@@ -10,10 +10,11 @@ export default function CostSummary({ costs, metrics, benchmark, btcUsd }) {
     return Math.abs(v).toFixed(6);
   };
 
-  // Build rows — skip zero-value entries to keep it clean
+  // Build rows — decomposed P&L with funding + short P&L separate
   const allRows = [
     { label: 'Pool Fees', btc: fees },
-    { label: 'Hedge P&L', btc: hedge },
+    { label: 'Funding Income', btc: fundingIncome || 0 },
+    { label: 'Short P&L', btc: shortPnl || 0 },
     { label: 'Impermanent Loss', btc: typeof il === 'number' ? -Math.abs(il) : 0 },
     { label: 'Gas Costs', btc: typeof gas === 'number' ? -Math.abs(gas) : 0 },
     { label: 'Slippage', btc: typeof slippage === 'number' ? -Math.abs(slippage) : 0 },
@@ -27,6 +28,7 @@ export default function CostSummary({ costs, metrics, benchmark, btcUsd }) {
   const feesMissed = metrics.feesMissed || 0;
   const marginStops = metrics.marginStops || 0;
   const cooldownDays = metrics.cooldownDays || 0;
+  const hedgeActivePct = metrics.hedgeActivePct || 0;
 
   return (
     <div className="bg-[#0d0d17] border border-[#1a1a2e] rounded-3xl p-8 h-full flex flex-col">
@@ -63,6 +65,24 @@ export default function CostSummary({ costs, metrics, benchmark, btcUsd }) {
       {/* Operational metrics */}
       {(daysOut > 0 || feesMissed > 0 || marginStops > 0 || cooldownDays > 0) && (
         <div className="mt-4 pt-4 border-t border-[#1a1a2e]/50 space-y-2 px-4">
+          {marginStops > 0 && (
+            <div className="flex items-center justify-between">
+              <span className="text-[13px] text-[#8888a8]">Margin Stops</span>
+              <span className="text-[13px] font-mono tabular-nums text-[#ef4444] font-semibold">{marginStops}</span>
+            </div>
+          )}
+          {cooldownDays > 0 && (
+            <div className="flex items-center justify-between">
+              <span className="text-[13px] text-[#8888a8]">Days in Cooldown</span>
+              <span className="text-[13px] font-mono tabular-nums text-[#f7931a] font-semibold">{cooldownDays} ({metrics.cooldownPct}%)</span>
+            </div>
+          )}
+          {hedgeActivePct > 0 && hedgeActivePct < 100 && (
+            <div className="flex items-center justify-between">
+              <span className="text-[13px] text-[#8888a8]">Hedge Active</span>
+              <span className="text-[13px] font-mono tabular-nums text-[#22c55e] font-semibold">{hedgeActivePct}%</span>
+            </div>
+          )}
           {daysOut > 0 && (
             <div className="flex items-center justify-between">
               <span className="text-[13px] text-[#8888a8]">Days Out of Range</span>
@@ -73,18 +93,6 @@ export default function CostSummary({ costs, metrics, benchmark, btcUsd }) {
             <div className="flex items-center justify-between">
               <span className="text-[13px] text-[#8888a8]">Fees Lost to Delay</span>
               <span className="text-[13px] font-mono tabular-nums text-[#ef4444] font-semibold">-{fmt(feesMissed)}</span>
-            </div>
-          )}
-          {marginStops > 0 && (
-            <div className="flex items-center justify-between">
-              <span className="text-[13px] text-[#8888a8]">Margin Stops</span>
-              <span className="text-[13px] font-mono tabular-nums text-[#ef4444] font-semibold">{marginStops}</span>
-            </div>
-          )}
-          {cooldownDays > 0 && (
-            <div className="flex items-center justify-between">
-              <span className="text-[13px] text-[#8888a8]">Days in Cooldown</span>
-              <span className="text-[13px] font-mono tabular-nums text-[#f7931a] font-semibold">{cooldownDays}</span>
             </div>
           )}
         </div>

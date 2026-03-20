@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { MITIGANT_PRESETS } from '../engine';
 
 function PillToggle({ label, value, onChange, options, disabled, compact }) {
   return (
@@ -24,6 +25,39 @@ function PillToggle({ label, value, onChange, options, disabled, compact }) {
   );
 }
 
+function MitigantToggle({ id, label, description, enabled, onToggle, children }) {
+  return (
+    <div className={`rounded-xl border p-4 transition-all duration-200 ${
+      enabled
+        ? 'border-[#22c55e]/30 bg-[rgba(34,197,94,0.04)]'
+        : 'border-[#1a1a2e] bg-[#0a0a14]'
+    }`}>
+      <div className="flex items-start gap-3">
+        <button onClick={onToggle}
+          className={`mt-0.5 w-5 h-5 rounded-md border-2 flex-shrink-0 flex items-center justify-center transition-all ${
+            enabled
+              ? 'border-[#22c55e] bg-[#22c55e]'
+              : 'border-[#555570] hover:border-[#8888a8]'
+          }`}>
+          {enabled && (
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 6L9 17l-5-5" />
+            </svg>
+          )}
+        </button>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-[12px] font-bold text-[#f0f0f8] uppercase tracking-wider">{id}</span>
+            <span className="text-[12px] font-semibold text-[#8888a8]">{label}</span>
+          </div>
+          <p className="text-[11px] text-[#555570] mt-1 leading-relaxed">{description}</p>
+          {enabled && children && <div className="mt-3 flex items-center gap-4">{children}</div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ConfigPanel({
   feeTier, setFeeTier,
   timing, setTiming,
@@ -38,9 +72,31 @@ export default function ConfigPanel({
   marginThreshold, setMarginThreshold,
   cooldownDays, setCooldownDays,
   exchange, setExchange,
+  // Mitigant props
+  maxStopsPerWindow, setMaxStopsPerWindow,
+  stopWindowDays, setStopWindowDays,
+  ethbtcSmaFilter, setEthbtcSmaFilter,
+  ethbtcSmaPeriod, setEthbtcSmaPeriod,
+  progressiveDehedge, setProgressiveDehedge,
+  expCooldown, setExpCooldown,
+  baseCooldownDays, setBaseCooldownDays,
+  // Preset
+  onApplyPreset,
 }) {
   const [gasOpen, setGasOpen] = useState(false);
   const [hedgeOpen, setHedgeOpen] = useState(true);
+  const [mitigantOpen, setMitigantOpen] = useState(true);
+
+  const m1Active = maxStopsPerWindow < Infinity;
+
+  // Detect current preset
+  const currentPreset = Object.entries(MITIGANT_PRESETS).find(([, p]) =>
+    p.leverage === leverage && p.marginThreshold === marginThreshold &&
+    p.rebalanceDelay === rebalanceDelay &&
+    p.progressiveDehedge === progressiveDehedge && p.expCooldown === expCooldown &&
+    (p.maxStopsPerWindow === Infinity ? !m1Active : m1Active && p.maxStopsPerWindow === maxStopsPerWindow)
+  );
+  const presetKey = currentPreset ? currentPreset[0] : 'custom';
 
   return (
     <div className="bg-[#0d0d17] border border-[#1a1a2e] rounded-3xl p-8 mb-10">
@@ -126,6 +182,111 @@ export default function ConfigPanel({
         </div>
       )}
 
+      {/* Row 2.5: Hedge Mitigants */}
+      {hedge && (
+        <div className="mt-8 pt-8 border-t border-[#1a1a2e]/50">
+          <button onClick={() => setMitigantOpen(!mitigantOpen)}
+            className="flex items-center gap-3 mb-5 group">
+            <span className="text-[13px] text-[#555570] font-semibold uppercase tracking-[0.12em] group-hover:text-[#f0f0f8] transition-colors">
+              Hedge Mitigants
+            </span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+              className={`text-[#555570] transition-transform duration-200 ${mitigantOpen ? 'rotate-180' : ''}`}>
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+            {(m1Active || progressiveDehedge || expCooldown || ethbtcSmaFilter) && (
+              <span className="text-[11px] font-bold text-[#22c55e] bg-[rgba(34,197,94,0.08)] border border-[rgba(34,197,94,0.2)] rounded-lg px-2.5 py-1">
+                {[m1Active && 'M1', ethbtcSmaFilter && 'M2', progressiveDehedge && 'M3', expCooldown && 'M4'].filter(Boolean).join(' + ')}
+              </span>
+            )}
+          </button>
+
+          {mitigantOpen && (
+            <div className="space-y-4">
+              {/* Presets */}
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-[11px] text-[#555570] font-semibold uppercase tracking-wider mr-2">Presets</span>
+                {Object.entries(MITIGANT_PRESETS).map(([key, preset]) => (
+                  <button key={key} onClick={() => onApplyPreset(key)}
+                    className={`px-3 py-1.5 text-[11px] font-semibold rounded-lg border transition-all ${
+                      presetKey === key
+                        ? 'bg-[#22c55e] text-black border-[#22c55e] shadow-[0_2px_8px_rgba(34,197,94,0.3)]'
+                        : 'text-[#8888a8] border-[#1a1a2e] bg-[#0a0a14] hover:text-[#f0f0f8] hover:border-[#555570]'
+                    }`}>
+                    {preset.label}{key === 'recommended' ? ' *' : ''}
+                  </button>
+                ))}
+                <button
+                  className={`px-3 py-1.5 text-[11px] font-semibold rounded-lg border transition-all ${
+                    presetKey === 'custom'
+                      ? 'bg-[#a855f7] text-black border-[#a855f7]'
+                      : 'text-[#555570] border-[#1a1a2e] bg-[#0a0a14]'
+                  }`}>
+                  Custom
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                {/* M1: Stop Cap */}
+                <MitigantToggle
+                  id="M1" label="Stop Cap" enabled={m1Active}
+                  onToggle={() => setMaxStopsPerWindow(m1Active ? Infinity : 1)}
+                  description="Cap margin stops per rolling window. Disables hedge after N stops in X days.">
+                  <div className="flex items-center gap-3">
+                    <span className="text-[11px] text-[#8888a8]">Max stops:</span>
+                    <select value={maxStopsPerWindow} onChange={e => setMaxStopsPerWindow(parseInt(e.target.value))}
+                      className="bg-[#0a0a14] border border-[#1a1a2e] text-[11px] text-[#f0f0f8] rounded-lg px-2 py-1 font-mono">
+                      {[1, 2, 3].map(v => <option key={v} value={v}>{v}</option>)}
+                    </select>
+                    <span className="text-[11px] text-[#8888a8]">Window:</span>
+                    <select value={stopWindowDays} onChange={e => setStopWindowDays(parseInt(e.target.value))}
+                      className="bg-[#0a0a14] border border-[#1a1a2e] text-[11px] text-[#f0f0f8] rounded-lg px-2 py-1 font-mono">
+                      {[30, 45, 60, 90, 120].map(v => <option key={v} value={v}>{v}d</option>)}
+                    </select>
+                  </div>
+                </MitigantToggle>
+
+                {/* M2: Trend Filter */}
+                <MitigantToggle
+                  id="M2" label="Trend Filter" enabled={ethbtcSmaFilter}
+                  onToggle={() => setEthbtcSmaFilter(!ethbtcSmaFilter)}
+                  description="Only hedge when ETHBTC < SMA (ETH underperforming BTC).">
+                  <div className="flex items-center gap-3">
+                    <span className="text-[11px] text-[#8888a8]">SMA period:</span>
+                    <select value={ethbtcSmaPeriod} onChange={e => setEthbtcSmaPeriod(parseInt(e.target.value))}
+                      className="bg-[#0a0a14] border border-[#1a1a2e] text-[11px] text-[#f0f0f8] rounded-lg px-2 py-1 font-mono">
+                      {[5, 10, 15, 20, 30, 50].map(v => <option key={v} value={v}>{v}d</option>)}
+                    </select>
+                  </div>
+                </MitigantToggle>
+
+                {/* M3: Progressive De-Hedging */}
+                <MitigantToggle
+                  id="M3" label="Progressive De-Hedge" enabled={progressiveDehedge}
+                  onToggle={() => setProgressiveDehedge(!progressiveDehedge)}
+                  description="Reduce hedge after consecutive stops: 50% > 30% > 15% > 0%. Resets on normal rebalance.">
+                </MitigantToggle>
+
+                {/* M4: Exponential Cooldown */}
+                <MitigantToggle
+                  id="M4" label="Exp Cooldown" enabled={expCooldown}
+                  onToggle={() => setExpCooldown(!expCooldown)}
+                  description="Double cooldown after each stop (cap 30d). Resets on normal rebalance.">
+                  <div className="flex items-center gap-3">
+                    <span className="text-[11px] text-[#8888a8]">Base:</span>
+                    <select value={baseCooldownDays} onChange={e => setBaseCooldownDays(parseInt(e.target.value))}
+                      className="bg-[#0a0a14] border border-[#1a1a2e] text-[11px] text-[#f0f0f8] rounded-lg px-2 py-1 font-mono">
+                      {[1, 2, 3, 4, 5].map(v => <option key={v} value={v}>{v}d</option>)}
+                    </select>
+                    <span className="text-[11px] text-[#555570] font-mono">{baseCooldownDays}d &gt; {baseCooldownDays*2}d &gt; {Math.min(baseCooldownDays*4, 30)}d &gt; {Math.min(baseCooldownDays*8, 30)}d</span>
+                  </div>
+                </MitigantToggle>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Row 3: Withdrawal + Advanced */}
       <div className="flex flex-wrap gap-8 items-end mt-8 pt-8 border-t border-[#1a1a2e]/50">
         <PillToggle label="Withdrawals" value={withdrawal} onChange={setWithdrawal}
@@ -177,7 +338,6 @@ export default function ConfigPanel({
             { value: 3, label: '72h' },
             { value: 4, label: '96h' },
           ]} />
-
       </div>
 
       {/* Gas expanded panel */}

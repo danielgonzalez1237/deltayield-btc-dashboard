@@ -1,14 +1,16 @@
 /**
- * DeltaYield V4 — Backtest Engine (Margin Stop-Loss + ETHUSDT Short Model)
+ * DeltaYield V4.5 — Backtest Engine (Mitigant Engine + Decomposed P&L)
  *
  * All formulas from the brief — zero synthetic data.
- * V4 changes:
- *   - ETHUSDT short model (P&L in USD, converted to BTC)
- *   - Margin stop-loss with configurable threshold and cooldown
- *   - Leverage-based collateral sizing
- *   - Per-exchange perp fees (Hyperliquid 0.045%, Binance 0.050%)
- *   - Priority order: margin stop > cooldown > range check > fees
- *   - Backward-compatible data field names (camelCase + snake_case)
+ * V4.5 changes (Addendum 5):
+ *   - M1: Stop Cap per Rolling Window (max N stops in X days → disable hedge)
+ *   - M2: ETHBTC SMA Trend Filter (only hedge when ETH underperforming)
+ *   - M3: Progressive De-Hedging (50% → 30% → 15% → 0% on consecutive stops)
+ *   - M4: Exponential Cooldown (double cooldown after each stop, cap 30d)
+ *   - Decomposed P&L: fundingIncome + shortPnl (was single "hedge" number)
+ *   - Enhanced position tracking with mitigant state
+ *   - Dynamic hedge ratio (from M3)
+ *   - Presets: Recommended, Conservative, Aggressive, No Mitigants
  */
 
 // ─── Constants ──────────────────────────────────────────────────────
@@ -25,6 +27,41 @@ const SMA_DEATH = '2024-04-15';
 
 const PERP_FEE_HL = 0.00045;   // Hyperliquid: 0.045% per side
 const PERP_FEE_BIN = 0.00050;  // Binance: 0.050% per side
+
+// M3: Progressive de-hedge steps
+const DEHEDGE_STEPS = [0.50, 0.30, 0.15, 0];
+
+// ─── Mitigant Presets ───────────────────────────────────────────────
+export const MITIGANT_PRESETS = {
+  recommended: {
+    label: 'Recommended',
+    leverage: 4.0, marginThreshold: 0.30, rebalanceDelay: 4, cooldownDays: 2,
+    maxStopsPerWindow: 1, stopWindowDays: 60,
+    ethbtcSmaFilter: false, ethbtcSmaPeriod: 30,
+    progressiveDehedge: true, expCooldown: true, baseCooldownDays: 3,
+  },
+  conservative: {
+    label: 'Conservative',
+    leverage: 5.0, marginThreshold: 0.25, rebalanceDelay: 2, cooldownDays: 2,
+    maxStopsPerWindow: 1, stopWindowDays: 60,
+    ethbtcSmaFilter: false, ethbtcSmaPeriod: 30,
+    progressiveDehedge: true, expCooldown: true, baseCooldownDays: 2,
+  },
+  aggressive: {
+    label: 'Aggressive',
+    leverage: 2.0, marginThreshold: 0.15, rebalanceDelay: 4, cooldownDays: 2,
+    maxStopsPerWindow: 1, stopWindowDays: 60,
+    ethbtcSmaFilter: false, ethbtcSmaPeriod: 30,
+    progressiveDehedge: true, expCooldown: true, baseCooldownDays: 3,
+  },
+  none: {
+    label: 'No Mitigants',
+    leverage: 3.0, marginThreshold: 0.30, rebalanceDelay: 2, cooldownDays: 2,
+    maxStopsPerWindow: Infinity, stopWindowDays: 60,
+    ethbtcSmaFilter: false, ethbtcSmaPeriod: 30,
+    progressiveDehedge: false, expCooldown: false, baseCooldownDays: 2,
+  },
+};
 
 // ─── Helpers ────────────────────────────────────────────────────────
 
@@ -45,6 +82,32 @@ function isPoolOn(date, timingMode) {
 
 function getPerpFee(exchange) {
   return exchange === 'binance' ? PERP_FEE_BIN : PERP_FEE_HL;
+}
+
+function subtractDays(dateStr, days) {
+  const d = new Date(dateStr);
+  d.setDate(d.getDate() - days);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Precompute rolling SMA of ethbtc prices */
+function precomputeEthbtcSma(data, period) {
+  const sma = new Array(data.length).fill(null);
+  let sum = 0, count = 0;
+  for (let i = 0; i < data.length; i++) {
+    if (data[i].ethbtc != null) {
+      sum += data[i].ethbtc;
+      count++;
+    }
+    if (i >= period) {
+      const old = data[i - period].ethbtc;
+      if (old != null) { sum -= old; count--; }
+    }
+    if (count > 0 && i >= period - 1) {
+      sma[i] = sum / count;
+    }
+  }
+  return sma;
 }
 
 export function formatDate(dateStr) {
@@ -77,7 +140,7 @@ export function filterByTimeRange(series, range) {
   return series.filter(s => s.date >= startStr);
 }
 
-// ─── Main Backtest (V4) ─────────────────────────────────────────────
+// ─── Main Backtest (V4.5 with Mitigants) ────────────────────────────
 
 export function runBacktest(data, config) {
   const {
@@ -92,18 +155,24 @@ export function runBacktest(data, config) {
     marginThreshold = 0.30,
     cooldownDays = 2,
     exchange = 'hl',
+    // Mitigant params
+    maxStopsPerWindow = Infinity,
+    stopWindowDays = 60,
+    ethbtcSmaFilter = false,
+    ethbtcSmaPeriod = 30,
+    progressiveDehedge = false,
+    expCooldown = false,
+    baseCooldownDays = 2,
   } = config;
 
   const PERP_FEE = getPerpFee(exchange);
   const swapFee = feeTier === '005' ? SWAP_FEE_005 : SWAP_FEE_030;
   const apyKey = feeTier === '005' ? 'apy_005' : 'apy_030';
-  const gasKey = feeTier === '005' ? 'gas_arb' : 'gas_eth';
-  const cooldownLength = cooldownDays;
+
+  // Precompute ETHBTC SMA for M2
+  const ethbtcSma = ethbtcSmaFilter ? precomputeEthbtcSma(data, ethbtcSmaPeriod) : null;
 
   // ─── CRITICAL: Truncate data at last day with complete ethbtc data ───
-  // Without ethbtc, the short P&L calculation uses eu=0 (null*number=0 in JS)
-  // which creates a fictitious massive short profit. We MUST NOT run the
-  // backtest past the last day with real ethbtc data.
   let lastEthbtcIdx = data.length - 1;
   while (lastEthbtcIdx > 0 && data[lastEthbtcIdx].ethbtc == null) {
     lastEthbtcIdx--;
@@ -111,10 +180,10 @@ export function runBacktest(data, config) {
   const truncatedData = data.slice(0, lastEthbtcIdx + 1);
 
   // ─── State ──────────────────────────────────────────────
-  let lpBtc = START_BTC;    // BTC in LP
-  let scBtc = 0;            // short collateral in BTC
-  let scUsd = 0;            // short collateral in USD
-  let scInitUsd = 0;        // initial collateral USD at position open (for margin calc)
+  let lpBtc = START_BTC;
+  let scBtc = 0;
+  let scUsd = 0;
+  let scInitUsd = 0;
   let peak = START_BTC;
   let maxDD = 0;
   let rangeCenter = null;
@@ -142,10 +211,18 @@ export function runBacktest(data, config) {
   let totalStopLoss = 0;
   let totalCooldownDaysSpent = 0;
 
-  // Cumulative costs
-  let totalFees = 0, totalHedge = 0, totalIL = 0, totalGas = 0;
+  // ─── Mitigant State ─────────────────────────────────────
+  let stopDates = [];                        // M1: history of stop dates
+  let currentHedgeRatio = HEDGE_RATIO;       // M3: dynamic hedge ratio
+  let consecutiveStops = 0;                  // M3: consecutive stop counter
+  let cooldownMultiplier = 1;                // M4: exponential multiplier
+  let hedgeDisabledByMitigant = false;       // Flag: hedge off due to mitigant
+  let hedgeActiveDays = 0;                   // Track days with hedge active
+
+  // Cumulative costs — DECOMPOSED
+  let totalFees = 0, totalFundingIncome = 0, totalShortPnl = 0;
+  let totalIL = 0, totalGas = 0;
   let totalSlippage = 0, totalSwapFees = 0, totalPerpFees = 0;
-  let cumulShortPnlBtc = 0;
 
   const positions = [];
   let currentPosition = null;
@@ -154,7 +231,6 @@ export function runBacktest(data, config) {
   // ─── Helper: get gas in USD for a day ───────────────────
   function getGasUsd(d) {
     if (gasOverride != null) return gasOverride;
-    // Support both camelCase and snake_case field names
     const gasArb = d.gasArb || d.gas_arb || 0.03;
     const gasEth = d.gasEth || d.gas_eth || 0.50;
     return feeTier === '005' ? gasArb : gasEth;
@@ -165,8 +241,86 @@ export function runBacktest(data, config) {
     return d.btcUsd || d.btc_usd || 85000;
   }
 
+  // ─── M1+M2+M3: Should we hedge on this opening? ────────
+  function shouldHedge(dayIndex) {
+    if (!hedge) return false;
+
+    // M2: ETHBTC SMA filter
+    if (ethbtcSmaFilter && ethbtcSma) {
+      const sma = ethbtcSma[dayIndex];
+      const eb = truncatedData[dayIndex]?.ethbtc;
+      if (sma != null && eb != null && eb > sma) {
+        return false; // ETH outperforming BTC → no hedge
+      }
+    }
+
+    // M1: Stop cap per window
+    if (maxStopsPerWindow < Infinity) {
+      const currentDate = truncatedData[dayIndex].date;
+      const windowStart = subtractDays(currentDate, stopWindowDays);
+      const recentStops = stopDates.filter(d => d >= windowStart).length;
+      if (recentStops >= maxStopsPerWindow) {
+        return false; // Too many recent stops → no hedge
+      }
+    }
+
+    // M3: If progressive dehedge reduced to 0
+    if (progressiveDehedge && currentHedgeRatio <= 0.01) {
+      return false;
+    }
+
+    return true;
+  }
+
+  // ─── Helper: get effective hedge ratio ─────────────────
+  function getEffectiveHedgeRatio() {
+    if (progressiveDehedge) return currentHedgeRatio;
+    return HEDGE_RATIO;
+  }
+
+  // ─── Helper: on margin stop — update mitigants ─────────
+  function onMarginStop(date) {
+    // M1: Record stop date
+    stopDates.push(date);
+
+    // M3: Reduce hedge ratio
+    if (progressiveDehedge) {
+      consecutiveStops++;
+      if (consecutiveStops < DEHEDGE_STEPS.length) {
+        currentHedgeRatio = DEHEDGE_STEPS[consecutiveStops];
+      } else {
+        currentHedgeRatio = 0;
+      }
+    }
+
+    // M4: Double cooldown multiplier
+    if (expCooldown) {
+      cooldownMultiplier *= 2;
+    }
+  }
+
+  // ─── Helper: on normal rebalance — reset mitigants ─────
+  function onNormalRebalance() {
+    if (progressiveDehedge) {
+      consecutiveStops = 0;
+      currentHedgeRatio = HEDGE_RATIO;
+    }
+    if (expCooldown) {
+      cooldownMultiplier = 1;
+    }
+  }
+
+  // ─── Helper: get effective cooldown days ────────────────
+  function getEffectiveCooldown() {
+    if (expCooldown) {
+      const base = baseCooldownDays > 0 ? baseCooldownDays : cooldownDays;
+      return Math.min(base * cooldownMultiplier, 30); // cap 30 days
+    }
+    return cooldownDays;
+  }
+
   // ─── Helper: open position ─────────────────────────────
-  function doOpen(d) {
+  function doOpen(d, dayIndex) {
     const eb = d.ethbtc;
     const bu = getBtcUsd(d);
     const eu = eb * bu;
@@ -179,9 +333,26 @@ export function runBacktest(data, config) {
     totalGas += gasCost;
     if (currentPosition) currentPosition.gas += gasCost;
 
-    if (hedge) {
-      // Split: LP gets (1 - hedgeRatio/leverage), short collateral gets hedgeRatio/leverage
-      let scBtcNew = totalAum * HEDGE_RATIO / leverage;
+    // Determine if hedge should be active
+    const hedgeThisPosition = shouldHedge(dayIndex);
+    hedgeDisabledByMitigant = hedge && !hedgeThisPosition;
+    const effectiveRatio = hedgeThisPosition ? getEffectiveHedgeRatio() : 0;
+
+    if (currentPosition) {
+      currentPosition.hedgeEnabled = hedgeThisPosition;
+      currentPosition.hedgeRatio = effectiveRatio;
+      currentPosition.mitigantState = {
+        m1_stopsInWindow: maxStopsPerWindow < Infinity
+          ? stopDates.filter(sd => sd >= subtractDays(d.date, stopWindowDays)).length
+          : 0,
+        m3_hedgeRatio: currentHedgeRatio,
+        m4_cooldownMultiplier: cooldownMultiplier,
+      };
+    }
+
+    if (hedgeThisPosition && effectiveRatio > 0.01) {
+      // Split: LP gets (1 - effectiveRatio/leverage), short collateral gets effectiveRatio/leverage
+      let scBtcNew = totalAum * effectiveRatio / leverage;
       let lpNew = totalAum - scBtcNew;
 
       // Convert collateral BTC to USD (with slippage)
@@ -195,8 +366,8 @@ export function runBacktest(data, config) {
       scUsd = scUsdNew;
       scBtc = scBtcNew;
 
-      // Short: notional = totalAum * HEDGE_RATIO * bu
-      const shortNotionalUsd = totalAum * HEDGE_RATIO * bu;
+      // Short: notional = totalAum * effectiveRatio * bu
+      const shortNotionalUsd = totalAum * effectiveRatio * bu;
       shortQtyEth = shortNotionalUsd / eu;
       shortEntryEthUsd = eu;
       shortOpen = true;
@@ -211,7 +382,7 @@ export function runBacktest(data, config) {
       totalPerpFees += perpFee / bu;
       if (currentPosition) currentPosition.perpFees += perpFee / bu;
 
-      // Swap fee + slippage on LP half (swapping 50% of LP from BTC to WETH)
+      // Swap fee + slippage on LP half
       const swapFeeCost = lpNew * 0.5 * swapFee;
       const slipFeeCost = lpNew * 0.5 * slippage;
       lpNew -= swapFeeCost + slipFeeCost;
@@ -224,7 +395,7 @@ export function runBacktest(data, config) {
 
       lpBtc = lpNew;
     } else {
-      // No hedge: all goes to LP
+      // No hedge (either disabled globally or by mitigant)
       lpBtc = totalAum;
       scBtc = 0;
       scUsd = 0;
@@ -251,10 +422,8 @@ export function runBacktest(data, config) {
     const eb = d.ethbtc;
     const bu = getBtcUsd(d);
 
-    // SAFETY: If ethbtc is null/0, we cannot compute short P&L or IL.
-    // This should not happen with truncated data, but guard against it.
+    // SAFETY: If ethbtc is null/0, guard
     if (!eb || eb <= 0) {
-      // Just consolidate LP + existing scBtc (no short close, no IL)
       const total = lpBtc + scBtc;
       lpBtc = total;
       scBtc = 0;
@@ -272,7 +441,7 @@ export function runBacktest(data, config) {
     // IL on LP
     if (rangeCenter && eb) {
       const r = eb / rangeCenter;
-      const il = lpBtc * calcIL(r);  // calcIL returns negative
+      const il = lpBtc * calcIL(r);
       const ilCost = Math.abs(il);
       lpBtc -= ilCost;
       totalIL += ilCost;
@@ -287,14 +456,14 @@ export function runBacktest(data, config) {
     if (currentPosition) currentPosition.gas += gasCost;
 
     // Close short
-    if (hedge && shortOpen) {
+    if (shortOpen) {
       const pnlUsd = (shortEntryEthUsd - eu) * shortQtyEth;
       scUsd += pnlUsd;
 
-      // Track short P&L in BTC
+      // Track short P&L in BTC — SEPARATE from funding
       const shortPnlBtc = pnlUsd / bu;
-      cumulShortPnlBtc += shortPnlBtc;
-      if (currentPosition) currentPosition.hedgePnl += shortPnlBtc;
+      totalShortPnl += shortPnlBtc;
+      if (currentPosition) currentPosition.shortPnl += shortPnlBtc;
 
       // Perp fee on close
       const closeNotional = shortQtyEth * eu;
@@ -329,11 +498,45 @@ export function runBacktest(data, config) {
     if (!shortOpen || scInitUsd <= 0) return false;
     const eu = d.ethbtc * getBtcUsd(d);
     const pnl = (shortEntryEthUsd - eu) * shortQtyEth;
-    if (pnl >= 0) return false; // profitable, no stop
+    if (pnl >= 0) return false;
     return Math.abs(pnl) / scInitUsd >= marginThreshold;
   }
 
-  // ─── Main Loop (uses truncatedData — stops at last valid ethbtc) ───
+  // ─── Helper: create new position object ─────────────────
+  function makePosition(date, ethbtc) {
+    return {
+      entryDate: date, exitDate: null,
+      entryPrice: ethbtc, exitPrice: null,
+      entryBtc: lpBtc + scBtc, exitBtc: null,
+      fees: 0, fundingIncome: 0, shortPnl: 0, hedgePnl: 0, il: 0, gas: 0,
+      slippage: 0, swapFees: 0, perpFees: 0,
+      rebalances: 0, closeReason: null,
+      hedgeEnabled: false, hedgeRatio: 0, leverage: leverage,
+      entryWbtcPct: 0.5, entryWethPct: 0.5,
+      exitWbtcPct: null, exitWethPct: null,
+      mitigantState: { m1_stopsInWindow: 0, m3_hedgeRatio: currentHedgeRatio, m4_cooldownMultiplier: cooldownMultiplier },
+    };
+  }
+
+  // ─── Helper: finalize position ──────────────────────────
+  function finalizePosition(date, ethbtc, closeReason) {
+    if (!currentPosition) return;
+    currentPosition.exitDate = date;
+    currentPosition.exitPrice = ethbtc || currentPosition.entryPrice;
+    currentPosition.exitBtc = lpBtc + scBtc;
+    currentPosition.closeReason = closeReason;
+    // hedgePnl = fundingIncome + shortPnl for backward compat
+    currentPosition.hedgePnl = currentPosition.fundingIncome + currentPosition.shortPnl;
+    if (ethbtc && currentPosition.entryPrice) {
+      const r = ethbtc / currentPosition.entryPrice;
+      currentPosition.exitWbtcPct = Math.min(1, Math.max(0, 0.5 + (r - 1) * 2.5));
+      currentPosition.exitWethPct = 1 - currentPosition.exitWbtcPct;
+    }
+    positions.push(currentPosition);
+    currentPosition = null;
+  }
+
+  // ─── Main Loop ──────────────────────────────────────────
   for (let i = 0; i < truncatedData.length; i++) {
     const d = truncatedData[i];
     const date = d.date;
@@ -353,37 +556,14 @@ export function runBacktest(data, config) {
       inCooldown = false;
       cooldownRemaining = 0;
 
-      currentPosition = {
-        entryDate: date, exitDate: null,
-        entryPrice: ethbtc, exitPrice: null,
-        entryBtc: lpBtc + scBtc, exitBtc: null,
-        fees: 0, hedgePnl: 0, il: 0, gas: 0,
-        slippage: 0, swapFees: 0, perpFees: 0,
-        rebalances: 0, closeReason: null,
-        entryWbtcPct: 0.5, entryWethPct: 0.5,
-        exitWbtcPct: null, exitWethPct: null,
-      };
-
-      doOpen(d);
+      currentPosition = makePosition(date, ethbtc);
+      doOpen(d, i);
     }
 
     // ─── ON → OFF transition ─────────────────────────────
     if (!on && wasOn && currentPosition) {
       doClose(d);
-
-      currentPosition.exitDate = date;
-      currentPosition.exitPrice = ethbtc || currentPosition.entryPrice;
-      currentPosition.exitBtc = lpBtc + scBtc;
-      currentPosition.closeReason = 'sma_off';
-
-      if (ethbtc && currentPosition.entryPrice) {
-        const r = ethbtc / currentPosition.entryPrice;
-        currentPosition.exitWbtcPct = Math.min(1, Math.max(0, 0.5 + (r - 1) * 2.5));
-        currentPosition.exitWethPct = 1 - currentPosition.exitWbtcPct;
-      }
-
-      positions.push(currentPosition);
-      currentPosition = null;
+      finalizePosition(date, ethbtc, 'sma_off');
       pendingRebalance = false;
       rangeExitDay = null;
       inCooldown = false;
@@ -394,78 +574,47 @@ export function runBacktest(data, config) {
     if (on && ethbtc != null && apy != null) {
 
       // ═══ PRIORITY 1: Margin stop check ═══
-      if (hedge && checkMarginStop(d)) {
+      if (shortOpen && checkMarginStop(d)) {
         marginStopToday = true;
         marginStopCount++;
 
-        // Record loss before closing
         const totalBefore = lpBtc + scBtc;
-
-        // Force close everything
         doClose(d);
-
         const totalAfter = lpBtc + scBtc;
         const stopLoss = totalBefore - totalAfter;
         if (stopLoss > 0) totalStopLoss += stopLoss;
 
-        // Close current position, enter cooldown
+        // Update mitigants BEFORE deciding cooldown
+        onMarginStop(date);
+
+        // Get effective cooldown (may be exponential)
+        const effectiveCooldown = getEffectiveCooldown();
+
         inCooldown = true;
-        cooldownRemaining = cooldownLength;
+        cooldownRemaining = effectiveCooldown;
         pendingRebalance = false;
         rangeExitDay = null;
         rebalanceCount++;
 
-        if (currentPosition) {
-          currentPosition.exitDate = date;
-          currentPosition.exitPrice = ethbtc || currentPosition.entryPrice;
-          currentPosition.exitBtc = lpBtc + scBtc;
-          currentPosition.closeReason = 'margin_stop';
-          if (ethbtc && currentPosition.entryPrice) {
-            const r = ethbtc / currentPosition.entryPrice;
-            currentPosition.exitWbtcPct = Math.min(1, Math.max(0, 0.5 + (r - 1) * 2.5));
-            currentPosition.exitWethPct = 1 - currentPosition.exitWbtcPct;
-          }
-          positions.push(currentPosition);
-          currentPosition = null;
-        }
+        finalizePosition(date, ethbtc, 'margin_stop');
 
         // If cooldown is 0, immediately reopen
-        if (cooldownLength === 0) {
+        if (effectiveCooldown === 0) {
           inCooldown = false;
-          currentPosition = {
-            entryDate: date, exitDate: null,
-            entryPrice: ethbtc, exitPrice: null,
-            entryBtc: lpBtc + scBtc, exitBtc: null,
-            fees: 0, hedgePnl: 0, il: 0, gas: 0,
-            slippage: 0, swapFees: 0, perpFees: 0,
-            rebalances: 0, closeReason: null,
-            entryWbtcPct: 0.5, entryWethPct: 0.5,
-            exitWbtcPct: null, exitWethPct: null,
-          };
-          doOpen(d);
+          currentPosition = makePosition(date, ethbtc);
+          doOpen(d, i);
         }
       }
 
       // ═══ PRIORITY 2: Cooldown ═══
       else if (inCooldown) {
-        // No fees, no hedge — just wait
         cooldownRemaining--;
         totalCooldownDaysSpent++;
 
         if (cooldownRemaining <= 0) {
-          // Cooldown over: reopen at current prices
           inCooldown = false;
-          currentPosition = {
-            entryDate: date, exitDate: null,
-            entryPrice: ethbtc, exitPrice: null,
-            entryBtc: lpBtc + scBtc, exitBtc: null,
-            fees: 0, hedgePnl: 0, il: 0, gas: 0,
-            slippage: 0, swapFees: 0, perpFees: 0,
-            rebalances: 0, closeReason: null,
-            entryWbtcPct: 0.5, entryWethPct: 0.5,
-            exitWbtcPct: null, exitWethPct: null,
-          };
-          doOpen(d);
+          currentPosition = makePosition(date, ethbtc);
+          doOpen(d, i);
         }
       }
 
@@ -478,49 +627,23 @@ export function runBacktest(data, config) {
         daysOutOfRange++;
 
         // Funding income still accrues during delay
-        if (hedge && shortOpen && fundingRate != null) {
-          const fundingBtc = scBtc * (fundingRate / 100 / 365);
-          // Actually funding accrues on the notional, via scUsd
-          // But for simplicity and consistency, apply via funding rate on hedge exposure
-          const hedgeExposureBtc = (lpBtc + scBtc) * HEDGE_RATIO;
+        if (shortOpen && fundingRate != null) {
+          const hedgeExposureBtc = (lpBtc + scBtc) * getEffectiveHedgeRatio();
           const hi = hedgeExposureBtc * (fundingRate / 100 / 365);
-          // Funding goes to collateral in USD
           scUsd += hi * btcUsd;
-          totalHedge += hi;
-          if (currentPosition) currentPosition.hedgePnl += hi;
+          totalFundingIncome += hi;
+          if (currentPosition) currentPosition.fundingIncome += hi;
         }
 
         // Check if delay period has elapsed
         if (i - rangeExitDay >= rebalanceDelay) {
-          // Close current position
           doClose(d);
           rebalanceCount++;
+          onNormalRebalance();
+          finalizePosition(date, ethbtc, 'rebalance');
 
-          if (currentPosition) {
-            currentPosition.exitDate = date;
-            currentPosition.exitPrice = ethbtc || currentPosition.entryPrice;
-            currentPosition.exitBtc = lpBtc + scBtc;
-            currentPosition.closeReason = 'rebalance';
-            if (ethbtc && currentPosition.entryPrice) {
-              const r = ethbtc / currentPosition.entryPrice;
-              currentPosition.exitWbtcPct = Math.min(1, Math.max(0, 0.5 + (r - 1) * 2.5));
-              currentPosition.exitWethPct = 1 - currentPosition.exitWbtcPct;
-            }
-            positions.push(currentPosition);
-          }
-
-          // Open new position
-          currentPosition = {
-            entryDate: date, exitDate: null,
-            entryPrice: ethbtc, exitPrice: null,
-            entryBtc: lpBtc + scBtc, exitBtc: null,
-            fees: 0, hedgePnl: 0, il: 0, gas: 0,
-            slippage: 0, swapFees: 0, perpFees: 0,
-            rebalances: 0, closeReason: null,
-            entryWbtcPct: 0.5, entryWethPct: 0.5,
-            exitWbtcPct: null, exitWethPct: null,
-          };
-          doOpen(d);
+          currentPosition = makePosition(date, ethbtc);
+          doOpen(d, i);
 
           pendingRebalance = false;
           rangeExitDay = null;
@@ -537,13 +660,16 @@ export function runBacktest(data, config) {
         if (currentPosition) currentPosition.fees += feeIncome;
 
         // Funding income
-        if (hedge && shortOpen && fundingRate != null) {
-          const hedgeExposureBtc = (lpBtc + scBtc) * HEDGE_RATIO;
+        if (shortOpen && fundingRate != null) {
+          const hedgeExposureBtc = (lpBtc + scBtc) * getEffectiveHedgeRatio();
           const hi = hedgeExposureBtc * (fundingRate / 100 / 365);
           scUsd += hi * btcUsd;
-          totalHedge += hi;
-          if (currentPosition) currentPosition.hedgePnl += hi;
+          totalFundingIncome += hi;
+          if (currentPosition) currentPosition.fundingIncome += hi;
         }
+
+        // Track hedge active days
+        if (shortOpen) hedgeActiveDays++;
 
         // Check range exit
         if (rangeCenter != null) {
@@ -553,35 +679,13 @@ export function runBacktest(data, config) {
               pendingRebalance = true;
               rangeExitDay = i;
             } else {
-              // Instant rebalance: close current position
               doClose(d);
               rebalanceCount++;
+              onNormalRebalance();
+              finalizePosition(date, ethbtc, 'rebalance');
 
-              if (currentPosition) {
-                currentPosition.exitDate = date;
-                currentPosition.exitPrice = ethbtc || currentPosition.entryPrice;
-                currentPosition.exitBtc = lpBtc + scBtc;
-                currentPosition.closeReason = 'rebalance';
-                if (ethbtc && currentPosition.entryPrice) {
-                  const r = ethbtc / currentPosition.entryPrice;
-                  currentPosition.exitWbtcPct = Math.min(1, Math.max(0, 0.5 + (r - 1) * 2.5));
-                  currentPosition.exitWethPct = 1 - currentPosition.exitWbtcPct;
-                }
-                positions.push(currentPosition);
-              }
-
-              // Open new position
-              currentPosition = {
-                entryDate: date, exitDate: null,
-                entryPrice: ethbtc, exitPrice: null,
-                entryBtc: lpBtc + scBtc, exitBtc: null,
-                fees: 0, hedgePnl: 0, il: 0, gas: 0,
-                slippage: 0, swapFees: 0, perpFees: 0,
-                rebalances: 0, closeReason: null,
-                entryWbtcPct: 0.5, entryWethPct: 0.5,
-                exitWbtcPct: null, exitWethPct: null,
-              };
-              doOpen(d);
+              currentPosition = makePosition(date, ethbtc);
+              doOpen(d, i);
             }
           }
         }
@@ -589,11 +693,11 @@ export function runBacktest(data, config) {
     }
 
     // ─── OFF but hedge open (Mode B legacy compat) ───────
-    if (!on && hedge && shortOpen && offMode === 'B' && fundingRate != null) {
-      const hedgeExposureBtc = (lpBtc + scBtc) * HEDGE_RATIO;
+    if (!on && shortOpen && offMode === 'B' && fundingRate != null) {
+      const hedgeExposureBtc = (lpBtc + scBtc) * getEffectiveHedgeRatio();
       const hi = hedgeExposureBtc * (fundingRate / 100 / 365);
       scUsd += hi * btcUsd;
-      totalHedge += hi;
+      totalFundingIncome += hi;
     }
 
     // ─── Track peak & drawdown ───────────────────────────
@@ -605,9 +709,8 @@ export function runBacktest(data, config) {
     wasOn = on;
 
     // ─── Series entry ────────────────────────────────────
-    // Compute current scBtc including unrealized short P&L for display
     let displayScBtc = scBtc;
-    if (hedge && shortOpen && ethbtc) {
+    if (shortOpen && ethbtc) {
       const eu = ethbtc * btcUsd;
       const unrealizedPnlUsd = (shortEntryEthUsd - eu) * shortQtyEth;
       const currentScUsd = scUsd + unrealizedPnlUsd;
@@ -621,30 +724,35 @@ export function runBacktest(data, config) {
       lpBtc: parseFloat(lpBtc.toFixed(6)),
       scBtc: parseFloat(displayScBtc.toFixed(6)),
       fees: parseFloat(totalFees.toFixed(6)),
-      hedge: parseFloat(totalHedge.toFixed(6)),
+      fundingIncome: parseFloat(totalFundingIncome.toFixed(6)),
+      shortPnlBtc: parseFloat(totalShortPnl.toFixed(6)),
+      hedge: parseFloat((totalFundingIncome + totalShortPnl).toFixed(6)), // backward compat
       il: parseFloat(totalIL.toFixed(6)),
       inCooldown,
       pendingRebalance,
       marginStop: marginStopToday,
+      hedgeDisabledByMitigant,
+      hedgeRatio: getEffectiveHedgeRatio(),
+      cooldownMultiplier,
       ethUsd: ethbtc ? parseFloat((ethbtc * btcUsd).toFixed(2)) : null,
-      shortPnlBtc: parseFloat(cumulShortPnlBtc.toFixed(6)),
-      // Legacy fields for backward compatibility
+      // Legacy fields
       ethbtc: ethbtc || null,
       btceth: ethbtc ? parseFloat((1 / ethbtc).toFixed(4)) : null,
       apy: apy ?? null,
       funding: fundingRate ?? null,
       on,
       hedgeOpen: shortOpen,
-      hedgeExposure: hedge ? parseFloat(((lpBtc + scBtc) * HEDGE_RATIO).toFixed(6)) : 0,
+      hedgeExposure: shortOpen ? parseFloat(((lpBtc + scBtc) * getEffectiveHedgeRatio()).toFixed(6)) : 0,
       rangeCenter: rangeCenter ? parseFloat(rangeCenter.toFixed(8)) : null,
       rangeLower: rangeCenter ? parseFloat((rangeCenter * (1 - RANGE_WIDTH)).toFixed(8)) : null,
       rangeUpper: rangeCenter ? parseFloat((rangeCenter * (1 + RANGE_WIDTH)).toFixed(8)) : null,
     });
   }
 
-  // ─── Close final open position (use last valid day, NOT null tail) ───
+  // ─── Close final open position ─────────────────────────
   if (currentPosition) {
     const lastValid = truncatedData[truncatedData.length - 1];
+    currentPosition.hedgePnl = currentPosition.fundingIncome + currentPosition.shortPnl;
     currentPosition.exitDate = lastValid.date;
     currentPosition.exitPrice = lastValid.ethbtc || currentPosition.entryPrice;
     currentPosition.exitBtc = lpBtc + scBtc;
@@ -677,25 +785,32 @@ export function runBacktest(data, config) {
       maxHedgeExposure: parseFloat(maxHedgeExposure.toFixed(6)),
       daysOutOfRange,
       feesMissed: parseFloat(feesMissed.toFixed(6)),
-      // V4 new fields
+      // V4 fields
       marginStops: marginStopCount,
       avgStopLoss: marginStopCount > 0 ? parseFloat((totalStopLoss / marginStopCount).toFixed(6)) : 0,
       cooldownDays: totalCooldownDaysSpent,
       cooldownPct: totalDays > 0 ? parseFloat((totalCooldownDaysSpent / totalDays * 100).toFixed(2)) : 0,
+      // V4.5 fields
+      hedgeActiveDays,
+      hedgeActivePct: activeDays > 0 ? parseFloat((hedgeActiveDays / activeDays * 100).toFixed(1)) : 0,
     },
     costs: {
       fees: parseFloat(totalFees.toFixed(6)),
-      hedge: parseFloat(totalHedge.toFixed(6)),
+      fundingIncome: parseFloat(totalFundingIncome.toFixed(6)),
+      shortPnl: parseFloat(totalShortPnl.toFixed(6)),
+      hedge: parseFloat((totalFundingIncome + totalShortPnl).toFixed(6)), // backward compat
       il: parseFloat(totalIL.toFixed(6)),
       gas: parseFloat(totalGas.toFixed(6)),
       slippage: parseFloat(totalSlippage.toFixed(6)),
       swapFees: parseFloat(totalSwapFees.toFixed(6)),
       perpFees: parseFloat(totalPerpFees.toFixed(6)),
-      net: parseFloat((totalFees + totalHedge - totalIL - totalGas - totalSlippage - totalSwapFees - totalPerpFees).toFixed(6)),
+      net: parseFloat((totalFees + totalFundingIncome + totalShortPnl - totalIL - totalGas - totalSlippage - totalSwapFees - totalPerpFees).toFixed(6)),
     },
     config: {
       feeTier, timing, hedge, offMode, gasOverride, slippage, rebalanceDelay,
       leverage, marginThreshold, cooldownDays, exchange,
+      maxStopsPerWindow, stopWindowDays, ethbtcSmaFilter, ethbtcSmaPeriod,
+      progressiveDehedge, expCooldown, baseCooldownDays,
     },
   };
 }
@@ -732,10 +847,9 @@ export function simulateWithdrawals(series, frequency) {
 
     if (mk - lastMonth >= months && i > 0) {
       // RULE: Only withdraw BTC units above initial capital (START_BTC).
-      // If balance <= START_BTC, no withdrawal — capital must be preserved.
       const withdrawable = btc - START_BTC;
       if (withdrawable > 0) {
-        btc = START_BTC; // Reset to initial capital after withdrawal
+        btc = START_BTC;
         totalWithdrawn += withdrawable;
         withdrawals.push({ date: s.date, amount: withdrawable, totalWithdrawn });
       }
@@ -770,9 +884,18 @@ export function runHybridBacktest(data, config) {
     marginThreshold = 0.30,
     cooldownDays = 2,
     exchange = 'hl',
+    // Pass mitigants through
+    maxStopsPerWindow = Infinity,
+    stopWindowDays = 60,
+    ethbtcSmaFilter = false,
+    ethbtcSmaPeriod = 30,
+    progressiveDehedge = false,
+    expCooldown = false,
+    baseCooldownDays = 2,
   } = config;
 
-  const baseConfig = { timing, hedge: false, offMode, gasOverride, slippage, rebalanceDelay, leverage, marginThreshold, cooldownDays, exchange };
+  const mitigantConfig = { maxStopsPerWindow, stopWindowDays, ethbtcSmaFilter, ethbtcSmaPeriod, progressiveDehedge, expCooldown, baseCooldownDays };
+  const baseConfig = { timing, hedge: false, offMode, gasOverride, slippage, rebalanceDelay, leverage, marginThreshold, cooldownDays, exchange, ...mitigantConfig };
   const resultArb = runBacktest(data, { ...baseConfig, feeTier: '005' });
   const resultEth = runBacktest(data, { ...baseConfig, feeTier: '030' });
 
@@ -861,15 +984,14 @@ export function scenarioKey(config) {
   return `${chain} ${fee} / ${timing} / ${lev}x/${mtPct}%`;
 }
 
-export function runAllScenarios(data, gasOverride = null, slippage = DEFAULT_SLIPPAGE, rebalanceDelay = 0, leverage = 3.0, marginThreshold = 0.30, cooldownDays = 2, exchange = 'hl') {
+export function runAllScenarios(data, gasOverride = null, slippage = DEFAULT_SLIPPAGE, rebalanceDelay = 0, leverage = 3.0, marginThreshold = 0.30, cooldownDays = 2, exchange = 'hl', mitigantConfig = {}) {
   const configs = [];
 
-  // Grid: feeTier x timing x hedge combos
   const leverageCombos = [
-    { hedge: false, leverage: 0, marginThreshold: 0 },          // unhedged
-    { hedge: true, leverage: 2.5, marginThreshold: 0.30 },      // 2.5x / 30%
-    { hedge: true, leverage, marginThreshold },                  // user's current config
-    { hedge: true, leverage: 5.0, marginThreshold: 0.15 },      // 5x / 15%
+    { hedge: false, leverage: 0, marginThreshold: 0 },
+    { hedge: true, leverage: 2.5, marginThreshold: 0.30 },
+    { hedge: true, leverage, marginThreshold },
+    { hedge: true, leverage: 5.0, marginThreshold: 0.15 },
   ];
 
   for (const feeTier of ['005', '030']) {
@@ -881,8 +1003,8 @@ export function runAllScenarios(data, gasOverride = null, slippage = DEFAULT_SLI
           leverage: lc.leverage,
           marginThreshold: lc.marginThreshold,
           offMode: 'B', gasOverride, slippage, rebalanceDelay,
-          exchange,
-          cooldownDays,
+          exchange, cooldownDays,
+          ...mitigantConfig,
         });
       }
     }
@@ -895,10 +1017,9 @@ export function runAllScenarios(data, gasOverride = null, slippage = DEFAULT_SLI
 
   // Hybrid scenarios
   for (const timing of ['always', 'sma']) {
-    const hybrid = runHybridBacktest(data, { timing, offMode: 'B', gasOverride, slippage, rebalanceDelay, leverage, marginThreshold, cooldownDays, exchange });
+    const hybrid = runHybridBacktest(data, { timing, offMode: 'B', gasOverride, slippage, rebalanceDelay, leverage, marginThreshold, cooldownDays, exchange, ...mitigantConfig });
     const label = timing === 'always' ? 'Always On' : 'SMA Timing';
 
-    // Calculate actual MaxDD from the combined hybrid series
     let hybridPeak = 1, hybridMaxDD = 0;
     for (const s of hybrid.series) {
       if (s.btc > hybridPeak) hybridPeak = s.btc;
@@ -918,9 +1039,12 @@ export function runAllScenarios(data, gasOverride = null, slippage = DEFAULT_SLI
           years: parseFloat((hybrid.series.length / 365).toFixed(2)),
           maxHedgeExposure: 0.5,
           marginStops: 0, avgStopLoss: 0, cooldownDays: 0, cooldownPct: 0,
+          hedgeActiveDays: 0, hedgeActivePct: 0,
         },
         costs: {
           fees: parseFloat(((hybrid.arbResult.costs.fees * 0.5) + (hybrid.ethResult.costs.fees * 0.5)).toFixed(6)),
+          fundingIncome: hybrid.hedgePnl,
+          shortPnl: 0,
           hedge: hybrid.hedgePnl,
           il: parseFloat(((hybrid.arbResult.costs.il * 0.5) + (hybrid.ethResult.costs.il * 0.5)).toFixed(6)),
           gas: parseFloat((hybrid.metrics.arbGas + hybrid.metrics.ethGas).toFixed(6)),

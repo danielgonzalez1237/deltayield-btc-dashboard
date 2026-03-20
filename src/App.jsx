@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
-import { runBacktest, runAllScenarios, runHybridBacktest, simulateWithdrawals } from './engine';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { runBacktest, runAllScenarios, runHybridBacktest, simulateWithdrawals, MITIGANT_PRESETS } from './engine';
 import MainChart from './components/MainChart';
 import ConfigPanel from './components/ConfigPanel';
 import CostSummary from './components/CostSummary';
@@ -26,13 +26,22 @@ export default function App() {
   const [withdrawal, setWithdrawal] = useState('none');
   const [gasOverride, setGasOverride] = useState(null);
   const [slippage, setSlippage] = useState(0.001);
-  const [rebalanceDelay, setRebalanceDelay] = useState(2); // 48h default per Addendum 4
+  const [rebalanceDelay, setRebalanceDelay] = useState(4); // 4d per Addendum 5 recommended
 
-  // V4 Hedge Engine controls
-  const [leverage, setLeverage] = useState(3.0);           // 3x default
-  const [marginThreshold, setMarginThreshold] = useState(0.30); // 30% default
-  const [cooldownDays, setCooldownDays] = useState(2);     // 48h default
-  const [exchange, setExchange] = useState('hl');           // Hyperliquid default
+  // V4 Hedge Engine controls — defaults from Recommended preset
+  const [leverage, setLeverage] = useState(4.0);
+  const [marginThreshold, setMarginThreshold] = useState(0.30);
+  const [cooldownDays, setCooldownDays] = useState(2);
+  const [exchange, setExchange] = useState('hl');
+
+  // V4.5 Mitigant controls — defaults from Recommended preset
+  const [maxStopsPerWindow, setMaxStopsPerWindow] = useState(1);
+  const [stopWindowDays, setStopWindowDays] = useState(60);
+  const [ethbtcSmaFilter, setEthbtcSmaFilter] = useState(false);
+  const [ethbtcSmaPeriod, setEthbtcSmaPeriod] = useState(30);
+  const [progressiveDehedge, setProgressiveDehedge] = useState(true);
+  const [expCooldown, setExpCooldown] = useState(true);
+  const [baseCooldownDays, setBaseCooldownDays] = useState(3);
 
   const [activeTab, setActiveTab] = useState('overview');
 
@@ -43,11 +52,38 @@ export default function App() {
       .catch(e => { setError(e.message); setLoading(false); });
   }, []);
 
+  // Apply preset
+  const handleApplyPreset = useCallback((key) => {
+    const p = MITIGANT_PRESETS[key];
+    if (!p) return;
+    setLeverage(p.leverage);
+    setMarginThreshold(p.marginThreshold);
+    setRebalanceDelay(p.rebalanceDelay);
+    setCooldownDays(p.cooldownDays);
+    setMaxStopsPerWindow(p.maxStopsPerWindow);
+    setStopWindowDays(p.stopWindowDays);
+    setEthbtcSmaFilter(p.ethbtcSmaFilter);
+    setEthbtcSmaPeriod(p.ethbtcSmaPeriod);
+    setProgressiveDehedge(p.progressiveDehedge);
+    setExpCooldown(p.expCooldown);
+    setBaseCooldownDays(p.baseCooldownDays);
+  }, []);
+
   const config = useMemo(() => ({
     feeTier, timing, hedge, offMode, gasOverride, slippage, rebalanceDelay,
     leverage, marginThreshold, cooldownDays, exchange,
+    maxStopsPerWindow, stopWindowDays, ethbtcSmaFilter, ethbtcSmaPeriod,
+    progressiveDehedge, expCooldown, baseCooldownDays,
   }), [feeTier, timing, hedge, offMode, gasOverride, slippage, rebalanceDelay,
-       leverage, marginThreshold, cooldownDays, exchange]);
+       leverage, marginThreshold, cooldownDays, exchange,
+       maxStopsPerWindow, stopWindowDays, ethbtcSmaFilter, ethbtcSmaPeriod,
+       progressiveDehedge, expCooldown, baseCooldownDays]);
+
+  const mitigantConfig = useMemo(() => ({
+    maxStopsPerWindow, stopWindowDays, ethbtcSmaFilter, ethbtcSmaPeriod,
+    progressiveDehedge, expCooldown, baseCooldownDays,
+  }), [maxStopsPerWindow, stopWindowDays, ethbtcSmaFilter, ethbtcSmaPeriod,
+       progressiveDehedge, expCooldown, baseCooldownDays]);
 
   const result = useMemo(() => {
     if (!data) return null;
@@ -61,13 +97,13 @@ export default function App() {
 
   const allScenarios = useMemo(() => {
     if (!data) return [];
-    return runAllScenarios(data, gasOverride, slippage, rebalanceDelay, leverage, marginThreshold, cooldownDays, exchange);
-  }, [data, gasOverride, slippage, rebalanceDelay, leverage, marginThreshold, cooldownDays, exchange]);
+    return runAllScenarios(data, gasOverride, slippage, rebalanceDelay, leverage, marginThreshold, cooldownDays, exchange, mitigantConfig);
+  }, [data, gasOverride, slippage, rebalanceDelay, leverage, marginThreshold, cooldownDays, exchange, mitigantConfig]);
 
   const hybridResult = useMemo(() => {
     if (!data) return null;
-    return runHybridBacktest(data, { timing, offMode, gasOverride, slippage, rebalanceDelay, leverage, marginThreshold, cooldownDays, exchange });
-  }, [data, timing, offMode, gasOverride, slippage, rebalanceDelay, leverage, marginThreshold, cooldownDays, exchange]);
+    return runHybridBacktest(data, { timing, offMode, gasOverride, slippage, rebalanceDelay, leverage, marginThreshold, cooldownDays, exchange, ...mitigantConfig });
+  }, [data, timing, offMode, gasOverride, slippage, rebalanceDelay, leverage, marginThreshold, cooldownDays, exchange, mitigantConfig]);
 
   const arbOnlyResult = useMemo(() => {
     if (!data) return null;
@@ -101,6 +137,8 @@ export default function App() {
     );
   }
 
+  const mitigantActive = maxStopsPerWindow < Infinity || ethbtcSmaFilter || progressiveDehedge || expCooldown;
+
   const tabs = [
     { id: 'overview', label: 'Overview' },
     { id: 'price', label: 'Price & Ranges' },
@@ -123,7 +161,9 @@ export default function App() {
           <div>
             <h1 className="text-2xl font-bold text-[#f0f0f8] tracking-tight">DeltaYield V4</h1>
             <p className="text-sm text-[#555570] mt-1">
-              WBTC/WETH CLP — {hedge ? `${leverage}x / ${(marginThreshold*100).toFixed(0)}% margin stop` : 'Unhedged'} — Real Data Only
+              WBTC/WETH CLP — {hedge ? `${leverage}x / ${(marginThreshold*100).toFixed(0)}% margin stop` : 'Unhedged'}
+              {mitigantActive && <span className="text-[#22c55e] ml-1">+ Mitigants</span>}
+              {' '} — Real Data Only
             </p>
           </div>
         </div>
@@ -133,7 +173,7 @@ export default function App() {
           </span>
           <span className="flex items-center gap-2 text-xs text-[#555570]">
             <span className="inline-block w-2 h-2 rounded-full bg-[#22c55e] animate-pulse" />
-            V4 Engine
+            V4.5 Engine
           </span>
         </div>
       </header>
@@ -153,6 +193,14 @@ export default function App() {
         marginThreshold={marginThreshold} setMarginThreshold={setMarginThreshold}
         cooldownDays={cooldownDays} setCooldownDays={setCooldownDays}
         exchange={exchange} setExchange={setExchange}
+        maxStopsPerWindow={maxStopsPerWindow} setMaxStopsPerWindow={setMaxStopsPerWindow}
+        stopWindowDays={stopWindowDays} setStopWindowDays={setStopWindowDays}
+        ethbtcSmaFilter={ethbtcSmaFilter} setEthbtcSmaFilter={setEthbtcSmaFilter}
+        ethbtcSmaPeriod={ethbtcSmaPeriod} setEthbtcSmaPeriod={setEthbtcSmaPeriod}
+        progressiveDehedge={progressiveDehedge} setProgressiveDehedge={setProgressiveDehedge}
+        expCooldown={expCooldown} setExpCooldown={setExpCooldown}
+        baseCooldownDays={baseCooldownDays} setBaseCooldownDays={setBaseCooldownDays}
+        onApplyPreset={handleApplyPreset}
       />
 
       {/* Metrics */}
@@ -199,7 +247,7 @@ export default function App() {
 
       {/* Footer */}
       <footer className="mt-16 py-6 border-t border-[#1a1a2e] flex items-center justify-between text-xs text-[#555570]">
-        <span>DeltaYield V4 — Zero synthetic data — Daily BTC/USD — {benchmark === 'usd' ? 'USD Mode' : 'BTC Benchmark'}</span>
+        <span>DeltaYield V4.5 — Zero synthetic data — Daily BTC/USD — {benchmark === 'usd' ? 'USD Mode' : 'BTC Benchmark'}</span>
         <span>The Graph + Binance + Hyperliquid — Real daily prices</span>
       </footer>
     </div>
