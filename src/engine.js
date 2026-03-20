@@ -35,31 +35,31 @@ const DEHEDGE_STEPS = [0.50, 0.30, 0.15, 0];
 export const MITIGANT_PRESETS = {
   recommended: {
     label: 'Recommended',
-    leverage: 4.0, marginThreshold: 0.30, rebalanceDelay: 4, cooldownDays: 2,
+    leverage: 4.0, marginThreshold: 0.30, rebalanceDelay: 4, cooldownDays: 3,
     maxStopsPerWindow: 1, stopWindowDays: 60,
     ethbtcSmaFilter: false, ethbtcSmaPeriod: 30,
-    progressiveDehedge: true, expCooldown: true, baseCooldownDays: 3,
+    progressiveDehedge: true, expCooldown: true,
   },
   conservative: {
     label: 'Conservative',
     leverage: 5.0, marginThreshold: 0.25, rebalanceDelay: 2, cooldownDays: 2,
     maxStopsPerWindow: 1, stopWindowDays: 60,
     ethbtcSmaFilter: false, ethbtcSmaPeriod: 30,
-    progressiveDehedge: true, expCooldown: true, baseCooldownDays: 2,
+    progressiveDehedge: true, expCooldown: true,
   },
   aggressive: {
     label: 'Aggressive',
-    leverage: 2.0, marginThreshold: 0.15, rebalanceDelay: 4, cooldownDays: 2,
+    leverage: 2.0, marginThreshold: 0.15, rebalanceDelay: 4, cooldownDays: 3,
     maxStopsPerWindow: 1, stopWindowDays: 60,
     ethbtcSmaFilter: false, ethbtcSmaPeriod: 30,
-    progressiveDehedge: true, expCooldown: true, baseCooldownDays: 3,
+    progressiveDehedge: true, expCooldown: true,
   },
   none: {
     label: 'No Mitigants',
     leverage: 3.0, marginThreshold: 0.30, rebalanceDelay: 2, cooldownDays: 2,
     maxStopsPerWindow: Infinity, stopWindowDays: 60,
     ethbtcSmaFilter: false, ethbtcSmaPeriod: 30,
-    progressiveDehedge: false, expCooldown: false, baseCooldownDays: 2,
+    progressiveDehedge: false, expCooldown: false,
   },
 };
 
@@ -162,7 +162,6 @@ export function runBacktest(data, config) {
     ethbtcSmaPeriod = 30,
     progressiveDehedge = false,
     expCooldown = false,
-    baseCooldownDays = 2,
   } = config;
 
   const PERP_FEE = getPerpFee(exchange);
@@ -311,10 +310,11 @@ export function runBacktest(data, config) {
   }
 
   // ─── Helper: get effective cooldown days ────────────────
+  // ALWAYS uses cooldownDays as the base (from the Cooldown pills).
+  // When M4 is active, multiplies by cooldownMultiplier (2x after each stop).
   function getEffectiveCooldown() {
-    if (expCooldown) {
-      const base = baseCooldownDays > 0 ? baseCooldownDays : cooldownDays;
-      return Math.min(base * cooldownMultiplier, 30); // cap 30 days
+    if (expCooldown && cooldownDays > 0) {
+      return Math.min(cooldownDays * cooldownMultiplier, 30); // cap 30 days
     }
     return cooldownDays;
   }
@@ -868,7 +868,7 @@ export function runBacktest(data, config) {
       feeTier, timing, hedge, offMode, gasOverride, slippage, rebalanceDelay,
       leverage, marginThreshold, cooldownDays, exchange,
       maxStopsPerWindow, stopWindowDays, ethbtcSmaFilter, ethbtcSmaPeriod,
-      progressiveDehedge, expCooldown, baseCooldownDays,
+      progressiveDehedge, expCooldown,
     },
   };
 }
@@ -949,10 +949,9 @@ export function runHybridBacktest(data, config) {
     ethbtcSmaPeriod = 30,
     progressiveDehedge = false,
     expCooldown = false,
-    baseCooldownDays = 2,
   } = config;
 
-  const mitigantConfig = { maxStopsPerWindow, stopWindowDays, ethbtcSmaFilter, ethbtcSmaPeriod, progressiveDehedge, expCooldown, baseCooldownDays };
+  const mitigantConfig = { maxStopsPerWindow, stopWindowDays, ethbtcSmaFilter, ethbtcSmaPeriod, progressiveDehedge, expCooldown };
   const baseConfig = { timing, hedge: false, offMode, gasOverride, slippage, rebalanceDelay, leverage, marginThreshold, cooldownDays, exchange, ...mitigantConfig };
   const resultArb = runBacktest(data, { ...baseConfig, feeTier: '005' });
   const resultEth = runBacktest(data, { ...baseConfig, feeTier: '030' });

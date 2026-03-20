@@ -79,7 +79,6 @@ export default function ConfigPanel({
   ethbtcSmaPeriod, setEthbtcSmaPeriod,
   progressiveDehedge, setProgressiveDehedge,
   expCooldown, setExpCooldown,
-  baseCooldownDays, setBaseCooldownDays,
   // Preset
   onApplyPreset,
 }) {
@@ -92,7 +91,7 @@ export default function ConfigPanel({
   // Detect current preset
   const currentPreset = Object.entries(MITIGANT_PRESETS).find(([, p]) =>
     p.leverage === leverage && p.marginThreshold === marginThreshold &&
-    p.rebalanceDelay === rebalanceDelay &&
+    p.rebalanceDelay === rebalanceDelay && p.cooldownDays === cooldownDays &&
     p.progressiveDehedge === progressiveDehedge && p.expCooldown === expCooldown &&
     (p.maxStopsPerWindow === Infinity ? !m1Active : m1Active && p.maxStopsPerWindow === maxStopsPerWindow)
   );
@@ -271,15 +270,15 @@ export default function ConfigPanel({
                 <MitigantToggle
                   id="M4" label="Exp Cooldown" enabled={expCooldown}
                   onToggle={() => setExpCooldown(!expCooldown)}
-                  description="Double cooldown after each stop (cap 30d). Resets on normal rebalance.">
-                  <div className="flex items-center gap-3">
-                    <span className="text-[11px] text-[#8888a8]">Base:</span>
-                    <select value={baseCooldownDays} onChange={e => setBaseCooldownDays(parseInt(e.target.value))}
-                      className="bg-[#0a0a14] border border-[#1a1a2e] text-[11px] text-[#f0f0f8] rounded-lg px-2 py-1 font-mono">
-                      {[1, 2, 3, 4, 5].map(v => <option key={v} value={v}>{v}d</option>)}
-                    </select>
-                    <span className="text-[11px] text-[#555570] font-mono">{baseCooldownDays}d &gt; {baseCooldownDays*2}d &gt; {Math.min(baseCooldownDays*4, 30)}d &gt; {Math.min(baseCooldownDays*8, 30)}d</span>
-                  </div>
+                  description="Double cooldown after each stop (cap 30d). Uses Cooldown pills as base. Resets on normal rebalance.">
+                  {cooldownDays > 0 && (
+                    <span className="text-[11px] text-[#555570] font-mono">
+                      {cooldownDays}d &gt; {cooldownDays*2}d &gt; {Math.min(cooldownDays*4, 30)}d &gt; {Math.min(cooldownDays*8, 30)}d (cap 30d)
+                    </span>
+                  )}
+                  {cooldownDays === 0 && (
+                    <span className="text-[11px] text-[#ef4444] font-mono">Cooldown = 0 — M4 has no effect</span>
+                  )}
                 </MitigantToggle>
               </div>
             </div>

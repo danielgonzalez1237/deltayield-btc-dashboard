@@ -41,7 +41,6 @@ export default function App() {
   const [ethbtcSmaPeriod, setEthbtcSmaPeriod] = useState(30);
   const [progressiveDehedge, setProgressiveDehedge] = useState(true);
   const [expCooldown, setExpCooldown] = useState(true);
-  const [baseCooldownDays, setBaseCooldownDays] = useState(3);
 
   const [activeTab, setActiveTab] = useState('overview');
 
@@ -66,24 +65,23 @@ export default function App() {
     setEthbtcSmaPeriod(p.ethbtcSmaPeriod);
     setProgressiveDehedge(p.progressiveDehedge);
     setExpCooldown(p.expCooldown);
-    setBaseCooldownDays(p.baseCooldownDays);
   }, []);
 
   const config = useMemo(() => ({
     feeTier, timing, hedge, offMode, gasOverride, slippage, rebalanceDelay,
     leverage, marginThreshold, cooldownDays, exchange,
     maxStopsPerWindow, stopWindowDays, ethbtcSmaFilter, ethbtcSmaPeriod,
-    progressiveDehedge, expCooldown, baseCooldownDays,
+    progressiveDehedge, expCooldown,
   }), [feeTier, timing, hedge, offMode, gasOverride, slippage, rebalanceDelay,
        leverage, marginThreshold, cooldownDays, exchange,
        maxStopsPerWindow, stopWindowDays, ethbtcSmaFilter, ethbtcSmaPeriod,
-       progressiveDehedge, expCooldown, baseCooldownDays]);
+       progressiveDehedge, expCooldown]);
 
   const mitigantConfig = useMemo(() => ({
     maxStopsPerWindow, stopWindowDays, ethbtcSmaFilter, ethbtcSmaPeriod,
-    progressiveDehedge, expCooldown, baseCooldownDays,
+    progressiveDehedge, expCooldown,
   }), [maxStopsPerWindow, stopWindowDays, ethbtcSmaFilter, ethbtcSmaPeriod,
-       progressiveDehedge, expCooldown, baseCooldownDays]);
+       progressiveDehedge, expCooldown]);
 
   const result = useMemo(() => {
     if (!data) return null;
@@ -199,7 +197,6 @@ export default function App() {
         ethbtcSmaPeriod={ethbtcSmaPeriod} setEthbtcSmaPeriod={setEthbtcSmaPeriod}
         progressiveDehedge={progressiveDehedge} setProgressiveDehedge={setProgressiveDehedge}
         expCooldown={expCooldown} setExpCooldown={setExpCooldown}
-        baseCooldownDays={baseCooldownDays} setBaseCooldownDays={setBaseCooldownDays}
         onApplyPreset={handleApplyPreset}
       />
 
